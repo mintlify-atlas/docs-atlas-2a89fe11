@@ -1,0 +1,126 @@
+{
+  "projectType": "saas",
+  "projectName": "Normo Unsecure PWA",
+  "projectDescription": "An intentionally vulnerable progressive web app designed for students to learn web security testing and mitigation techniques.",
+  "theme": "aspen",
+  "primaryColor": "#de4461",
+  "lightColor": "#f1a8b7",
+  "darkColor": "#d4143c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "deployment"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "architecture",
+              "security-by-design",
+              "testing-approaches"
+            ]
+          },
+          {
+            "group": "Sandbox Environments",
+            "pages": [
+              "sandbox/overview",
+              "sandbox/setup",
+              "sandbox/best-practices"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Vulnerabilities",
+        "groups": [
+          {
+            "group": "Injection Attacks",
+            "pages": [
+              "vulnerabilities/sql-injection",
+              "vulnerabilities/xss",
+              "vulnerabilities/csrf"
+            ]
+          },
+          {
+            "group": "Authentication & Sessions",
+            "pages": [
+              "vulnerabilities/broken-authentication",
+              "vulnerabilities/session-management",
+              "vulnerabilities/password-encryption"
+            ]
+          },
+          {
+            "group": "Data Protection",
+            "pages": [
+              "vulnerabilities/defensive-data-handling",
+              "vulnerabilities/ssl-tls-encryption",
+              "vulnerabilities/two-factor-auth"
+            ]
+          },
+          {
+            "group": "Advanced Attacks",
+            "pages": [
+              "vulnerabilities/xfs",
+              "vulnerabilities/race-conditions",
+              "vulnerabilities/file-attacks",
+              "vulnerabilities/invalid-redirects"
+            ]
+          },
+          {
+            "group": "Security Policies",
+            "pages": [
+              "vulnerabilities/content-security-policy",
+              "vulnerabilities/secure-form-attributes"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Mitigation Guides",
+            "pages": [
+              "resources/flask-safe-api",
+              "resources/exception-handling",
+              "resources/secure-coding"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "resources/definitions",
+              "resources/privacy-compliance",
+              "resources/incident-response"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Intentionally vulnerable Flask PWA for security education",
+    "16+ documented security vulnerabilities with testing guides",
+    "Comprehensive mitigation strategies and code examples",
+    "Aligned with NESA HSC Software Engineering curriculum",
+    "Student resources for hands-on security analysis",
+    "Support for white-box, grey-box, and black-box testing"
+  ],
+  "publicApiSurface": [
+    "POST /signup.html - User registration endpoint",
+    "POST /index.html - User login endpoint",
+    "POST /success.html - Feedback submission endpoint",
+    "GET /?url - Dynamic URL redirect (vulnerable)",
+    "Database: users table (username, password, dateOfBirth)",
+    "Database: feedback table (feedback)",
+    "Flask app on port 5000",
+    "SQLite database in database_files/database.db"
+  ]
+}
