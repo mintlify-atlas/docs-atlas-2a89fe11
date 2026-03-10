@@ -1,0 +1,603 @@
+---
+title: Security Testing Approaches
+description: Comprehensive guide to white-box, grey-box, and black-box security testing methodologies
+icon: magnifying-glass
+---
+
+## Overview
+
+Security testing should be integrated throughout the Software Development Life Cycle (SDLC). This guide covers the three main penetration testing approaches and various automated testing methodologies you'll use to analyze the Normo Unsecure PWA.
+
+<Warning>
+**Legal Notice**: You MUST only perform penetration testing on applications you own or have explicit written permission to test. Unauthorized penetration testing is illegal and can result in criminal charges.
+</Warning>
+
+## Types of Penetration Testing
+
+<CardGroup cols={3}>
+  <Card title="White-Box Testing" icon="book-open">
+    Full access to source code, architecture, and documentation
+  </Card>
+  <Card title="Grey-Box Testing" icon="book">
+    Partial knowledge of the application internals
+  </Card>
+  <Card title="Black-Box Testing" icon="box">
+    No knowledge of internal structure - external testing only
+  </Card>
+</CardGroup>
+
+### White-Box Penetration Testing
+
+**Definition:** Testing with complete knowledge of the application, including source code, architecture, and infrastructure.
+
+**What you have access to:**
+- Complete source code (`main.py`, `user_management.py`, templates)
+- Database schema and structure
+- Configuration files and dependencies
+- Application architecture and design documents
+- Real-time access to logs during testing
+
+**Testing approach:**
+
+<Steps>
+  <Step title="Code Review">
+    Manually examine source code for security vulnerabilities
+    
+```python Example: Reviewing user_management.py
+# Line 20: SQL Injection vulnerability identified
+cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+# ❌ Using f-string allows SQL injection
+# ✅ Should use parameterized query: cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+```
+  </Step>
+  <Step title="Static Analysis">
+    Use automated SAST tools to scan code without executing it
+    
+```bash Running SAST tools
+# GitHub Security Scanning (if using GitHub)
+# Enable: Settings → Security → Code scanning
+
+# Bandit (Python security linter)
+pip install bandit
+bandit -r . -f json -o bandit-report.json
+
+# Semgrep
+semgrep --config=auto .
+```
+  </Step>
+  <Step title="Configuration Review">
+    Check configuration files for security issues
+    
+```python main.py:70-73 - Configuration Issues
+app.config["TEMPLATES_AUTO_RELOAD"] = True  # ⚠️ Performance impact
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # ⚠️ No caching
+app.run(debug=True, host="0.0.0.0", port=5000)  # ⚠️ Multiple issues
+```
+  </Step>
+  <Step title="Architecture Analysis">
+    Review overall design for security anti-patterns:
+    
+    - No authentication middleware
+    - No input validation layer
+    - Direct database access from routes
+    - No separation of concerns
+  </Step>
+</Steps>
+
+**Advantages:**
+- Identifies vulnerabilities early in development
+- Can find complex logic flaws
+- Complete code coverage
+- Can verify security controls are implemented correctly
+
+**Disadvantages:**
+- Requires programming knowledge
+- Time-intensive for large codebases
+- May miss runtime-only issues
+- Can't test third-party dependencies without source
+
+### Grey-Box Penetration Testing
+
+**Definition:** Testing with partial knowledge of the application, typically having some documentation or limited access.
+
+**What you might have:**
+- API documentation
+- Database schema (but not source code)
+- User role information
+- Network architecture diagrams
+- Some access to logs
+
+**Testing approach:**
+
+<Steps>
+  <Step title="Understand the Attack Surface">
+    Map out all entry points and functionality
+    
+```bash Mapping the Normo PWA
+Endpoints:
+- POST /index.html (login)
+- POST /signup.html (registration)
+- POST /success.html (feedback)
+- GET /?url= (redirect)
+
+Database tables:
+- users (username, password, dateOfBirth)
+- feedback (feedback)
+```
+  </Step>
+  <Step title="Test with Known Patterns">
+    Use knowledge of common vulnerabilities in similar applications
+    
+```bash SQL Injection Testing (knowing database exists)
+# Try common SQL injection patterns
+username: admin' OR '1'='1
+password: admin' OR '1'='1
+
+# Expected if vulnerable: Authentication bypass
+# Expected if secure: Login failure
+```
+  </Step>
+  <Step title="Combine Automated and Manual Testing">
+    Use DAST tools with targeted manual testing
+    
+```bash Dynamic Testing with ZAPROXY
+# Start ZAPROXY
+# Configure browser to use proxy
+# Manually interact with the app while ZAPROXY records
+# Run automated spider and scanner
+# Review alerts and verify findings manually
+```
+  </Step>
+</Steps>
+
+**Advantages:**
+- More realistic than white-box (simulates insider threat)
+- Faster than pure black-box testing
+- Can prioritize testing based on known risks
+- Good balance of efficiency and thoroughness
+
+**Disadvantages:**
+- May miss vulnerabilities in unknown areas
+- Requires some documentation to be effective
+- Can't verify all security controls
+
+### Black-Box Penetration Testing
+
+**Definition:** Testing with no knowledge of internal structure - simulating an external attacker.
+
+**What you have access to:**
+- Public-facing URLs (e.g., `http://127.0.0.1:5000`)
+- User-facing interface only
+- No source code or documentation
+
+**Testing approach:**
+
+<Steps>
+  <Step title="Reconnaissance">
+    Gather information about the target
+    
+```bash Information Gathering
+# Check HTTP headers
+curl -I http://127.0.0.1:5000
+
+# Technology identification
+# Look for clues: error messages, default pages, cookies
+
+# Directory enumeration (not applicable to student testing)
+```
+  </Step>
+  <Step title="Vulnerability Scanning">
+    Use automated tools to discover vulnerabilities
+    
+```bash ZAPROXY Automated Scan
+1. Open ZAPROXY
+2. Automated Scan → URL: http://127.0.0.1:5000
+3. Enable all scan policies
+4. Start scan
+5. Review alerts (SQL Injection, XSS, CSRF, etc.)
+```
+  </Step>
+  <Step title="Manual Exploitation">
+    Test discovered vulnerabilities manually
+    
+```javascript XSS Testing in Feedback Form
+// Test payload
+<script>alert('XSS')</script>
+
+// If successful, script executes when viewing feedback
+// Try advanced payloads:
+<img src=x onerror=alert(document.cookie)>
+<svg onload=alert(1)>
+```
+  </Step>
+  <Step title="Brute Force Testing">
+    Attempt credential attacks and input fuzzing
+    
+```bash Common Username Testing
+# Try default credentials
+admin:admin
+admin:password
+root:root
+
+# Use common username/password lists
+# https://github.com/danielmiessler/SecLists
+```
+  </Step>
+</Steps>
+
+**Advantages:**
+- Simulates real-world external attacker
+- No bias from knowing the code
+- Tests the actual deployed application
+- Can discover configuration and deployment issues
+
+**Disadvantages:**
+- Time-consuming to discover all functionality
+- May miss complex vulnerabilities
+- Limited code coverage
+- Cannot verify security controls were implemented
+
+## Automated Testing Methodologies
+
+### Static Application Security Testing (SAST)
+
+**What it is:** Automated analysis of source code without executing it (white-box approach).
+
+<Tabs>
+  <Tab title="How SAST Works">
+SAST tools parse and analyze source code to identify:
+- SQL injection patterns
+- XSS vulnerabilities
+- Hardcoded credentials
+- Insecure cryptographic usage
+- Path traversal vulnerabilities
+- Command injection
+- Unsafe deserialization
+
+**Process:**
+1. Tool parses source code into abstract syntax tree (AST)
+2. Analyzes data flow and control flow
+3. Matches patterns against vulnerability signatures
+4. Reports findings with severity and location
+  </Tab>
+  <Tab title="Tools & Setup">
+```bash SAST Tools for Python/Flask
+
+# Bandit - Python security linter
+pip install bandit
+bandit -r . -ll  # -ll shows only medium/high severity
+
+# Semgrep - Multi-language static analysis
+pip install semgrep
+semgrep --config=auto .
+
+# GitHub Security Scanning (if using GitHub)
+# Go to Settings → Security → Enable code scanning
+
+# SonarQube - Comprehensive code quality
+# Requires separate setup
+```
+  </Tab>
+  <Tab title="Expected Findings">
+**In Normo Unsecure PWA, SAST should detect:**
+
+✅ SQL Injection (user_management.py:20, 25, 45)  
+✅ Debug mode enabled (main.py:73)  
+✅ Binding to all interfaces (main.py:73)  
+✅ Hardcoded database path  
+✅ No input validation  
+❌ May miss: CSRF (requires runtime context)  
+❌ May miss: XSS (depends on template analysis)
+  </Tab>
+</Tabs>
+
+**Advantages:**
+- Can be run early in development
+- 100% code coverage
+- Fast and automatable
+- No need for running application
+
+**Disadvantages:**
+- High false positive rate
+- Cannot detect business logic flaws
+- Cannot find runtime-only issues
+- Requires access to source code
+
+### Dynamic Application Security Testing (DAST)
+
+**What it is:** Automated testing of a running application without access to source code (black-box approach).
+
+<Tabs>
+  <Tab title="How DAST Works">
+DAST tools interact with the application like a user would:
+
+1. **Spider/Crawl:** Discover all pages and functionality
+2. **Attack:** Send malicious payloads to inputs
+3. **Observe:** Analyze responses for vulnerability indicators
+4. **Report:** Document confirmed vulnerabilities
+
+**Detection methods:**
+    - Response analysis (error messages, stack traces)
+    - Timing analysis (SQL injection, timing attacks)
+    - Pattern matching (XSS reflected in response)
+    - State changes (authentication bypass)
+  </Tab>
+  <Tab title="Tools & Setup">
+```bash DAST Tools
+
+# ZAPROXY - Free, open-source
+# Download from https://www.zaproxy.org/
+# 1. Start ZAP
+# 2. Automated Scan → Enter URL
+# 3. Configure scan policy
+# 4. Start scan
+# 5. Review alerts
+
+# Burp Suite Community Edition
+# Download from https://portswigger.net/burp/communitydownload
+# Configure browser proxy
+# Manual exploration + Scanner
+
+# Nikto - Web server scanner
+nikto -h http://127.0.0.1:5000
+```
+  </Tab>
+  <Tab title="Expected Findings">
+**In Normo Unsecure PWA, DAST should detect:**
+
+✅ SQL Injection in login form  
+✅ SQL Injection in signup form  
+✅ SQL Injection in feedback form  
+✅ XSS in feedback display  
+✅ CSRF (no tokens on forms)  
+✅ Open redirect vulnerabilities  
+✅ Missing security headers  
+✅ Verbose error messages  
+❌ May miss: Timing attacks (requires manual analysis)  
+❌ May miss: Logic flaws (requires understanding business rules)
+  </Tab>
+</Tabs>
+
+**Advantages:**
+- Tests actual running application
+- Low false positive rate
+- Discovers runtime and configuration issues
+- No source code required
+
+**Disadvantages:**
+- Requires deployed application
+- Limited code coverage
+- Cannot test all code paths
+- Runs late in SDLC
+
+### Comparing SAST and DAST
+
+| Aspect | SAST | DAST |
+|--------|------|------|
+| **Testing type** | White-box | Black-box |
+| **When to run** | During development | After deployment |
+| **Code coverage** | 100% | Limited to discovered paths |
+| **False positives** | High | Low |
+| **Finds** | Code-level issues | Runtime issues |
+| **Speed** | Fast | Slower |
+| **Setup** | Needs source access | Needs running app |
+| **Best for** | SQL injection, hardcoded secrets | Configuration, authentication bypass |
+
+<Info>
+**Best practice:** Use both SAST and DAST together for comprehensive coverage. SAST catches issues during development, DAST verifies they're exploitable in the running app.
+</Info>
+
+## Code Review Checklist
+
+When performing manual white-box testing, use this checklist:
+
+<AccordionGroup>
+  <Accordion title="Privacy">
+    - [ ] Is sensitive data stored that is not required?
+    - [ ] Are passwords encrypted before storage?
+    - [ ] Is sensitive data logged in error messages?
+    - [ ] Can users download and delete their data?
+    - [ ] Is there a privacy policy?
+    - [ ] Who has access to log files?
+  </Accordion>
+  <Accordion title="Authentication">
+    - [ ] Are users authenticated or treated as anonymous?
+    - [ ] What authentication factors are used?
+    - [ ] Are there password complexity requirements?
+    - [ ] Is there a password age policy?
+    - [ ] Are failed login attempts tracked?
+    - [ ] Is there account lockout after failed attempts?
+  </Accordion>
+  <Accordion title="Authorization">
+    - [ ] Are there different user roles?
+    - [ ] Is authorization checked on each request?
+    - [ ] Are sensitive files protected from unauthorized access?
+    - [ ] Can users access other users' data?
+  </Accordion>
+  <Accordion title="Data Validation">
+    - [ ] Is user-submitted data validated?
+    - [ ] When is data validated (on input or use)?
+    - [ ] What validation method is used (whitelist/blacklist/regex)?
+    - [ ] Are parameterized queries used for database access?
+    - [ ] Is output encoded to prevent XSS?
+  </Accordion>
+  <Accordion title="Exception/Error Handling">
+    - [ ] What error handling approach is used?
+    - [ ] What error details are shown to users?
+    - [ ] Are errors logged with enough detail?
+    - [ ] Are database errors handled securely?
+    - [ ] Is debug mode disabled in production?
+  </Accordion>
+  <Accordion title="Session Management">
+    - [ ] How is session state managed?
+    - [ ] How is session ID generated?
+    - [ ] Are previous sessions invalidated on login?
+    - [ ] Are tokens used? What algorithm?
+    - [ ] Are there session timeouts?
+    - [ ] Is there a logout function?
+  </Accordion>
+  <Accordion title="Logging">
+    - [ ] Is logging implemented?
+    - [ ] Where are logs stored?
+    - [ ] Is unvalidated input logged?
+    - [ ] Are log messages timestamped?
+    - [ ] Is sensitive data written to logs?
+  </Accordion>
+  <Accordion title="Encryption">
+    - [ ] Are encryption algorithms used (SSL/TLS/RSA)?
+    - [ ] Are passwords hashed with salt?
+    - [ ] Where are crypto libraries from and what version?
+    - [ ] Is HTTPS enforced for all communication?
+  </Accordion>
+</AccordionGroup>
+
+## Practical Testing Examples
+
+### Testing for SQL Injection
+
+<CodeGroup>
+
+```bash White-Box (Code Review)
+# Review user_management.py:20
+cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+# ❌ Vulnerable: f-string allows injection
+# Proof: username = "' OR '1'='1" bypasses authentication
+```
+
+```bash Grey-Box (Known Database)
+# Knowing there's a users table, test:
+POST /index.html
+username=admin' OR '1'='1'--
+password=anything
+
+# Observe: Does it log in without valid password?
+```
+
+```bash Black-Box (No Knowledge)
+# Try common injection patterns:
+username=admin'
+username=admin'--
+username=admin' OR '1'='1
+username=admin' OR '1'='1'--
+
+# Look for: SQL errors, unexpected behavior
+```
+
+</CodeGroup>
+
+### Testing for XSS
+
+<CodeGroup>
+
+```bash White-Box (Code Review)
+# Review user_management.py:56-59
+f.write(f"{row[1]}\n")  # ❌ No HTML escaping
+# Vulnerable: Any <script> tag in feedback will execute
+```
+
+```bash Grey-Box (Known Feedback Feature)
+# Submit feedback with payload:
+<script>alert('XSS')</script>
+
+# Then check if it executes when viewing feedback page
+```
+
+```bash Black-Box (Discovery)
+# Find input fields, try payloads:
+<script>alert(1)</script>
+<img src=x onerror=alert(1)>
+<svg onload=alert(1)>
+
+# Check source code of responses for reflection
+```
+
+</CodeGroup>
+
+## Tools and Resources
+
+### Penetration Testing Tools
+
+<CardGroup cols={2}>
+  <Card title="ZAPROXY" icon="spider-web" href="https://www.zaproxy.org/">
+    Free, open-source web application security scanner
+  </Card>
+  <Card title="Burp Suite" icon="fire" href="https://portswigger.net/burp">
+    Industry-standard web security testing platform
+  </Card>
+  <Card title="Wireshark" icon="network-wired" href="https://www.wireshark.org/">
+    Network protocol analyzer for traffic inspection
+  </Card>
+  <Card title="CyberChef" icon="kitchen-set" href="https://gchq.github.io/CyberChef/">
+    Web app for encoding, decoding, and analyzing data
+  </Card>
+</CardGroup>
+
+### Test Payload Resources
+
+- [XSS Test Scripts](/vulnerabilities/xss) - Cross-site scripting payloads
+- [SQL Injection Examples](https://www.w3schools.com/sql/sql_injection.asp) - Common injection patterns
+- [SecLists](https://github.com/danielmiessler/SecLists) - Username/password dictionaries
+- [Simple HTTP Request Tool](/resources/flask-safe-api) - Testing localhost APIs
+
+### Network and Infrastructure Tools
+
+- [ViewDNS](https://viewdns.info/) - DNS and hosting scanning
+- [MX Toolbox](https://mxtoolbox.com/NetworkTools.aspx) - Email and DNS diagnostics  
+- [SSL Labs](https://www.ssllabs.com/projects/index.html) - SSL/TLS testing tools
+- [Postman](https://www.postman.com/) - API testing platform
+
+## Testing Workflow for Normo PWA
+
+<Steps>
+  <Step title="Phase 1: White-Box Code Review">
+    - Clone the repository
+    - Read all source files (`main.py`, `user_management.py`, templates)
+    - Document vulnerabilities found in code
+    - Run SAST tools (Bandit, Semgrep)
+    - Create a vulnerability inventory
+  </Step>
+  <Step title="Phase 2: Deploy in Sandbox">
+    - Set up isolated testing environment
+    - Deploy application: `python main.py`
+    - Verify app is running: `http://127.0.0.1:5000`
+    - **Never deploy to production!**
+  </Step>
+  <Step title="Phase 3: Grey-Box Testing">
+    - Use knowledge from code review to target specific vulnerabilities
+    - Test SQL injection with crafted payloads
+    - Test XSS in feedback form
+    - Test CSRF attacks
+    - Test open redirects
+    - Monitor logs during testing
+  </Step>
+  <Step title="Phase 4: Black-Box DAST">
+    - Run ZAPROXY automated scan
+    - Review all alerts
+    - Manually verify findings
+    - Test for additional vulnerabilities not found by scanner
+  </Step>
+  <Step title="Phase 5: Document and Report">
+    - Catalog all vulnerabilities found
+    - Assess impact and severity
+    - Provide proof-of-concept exploits
+    - Recommend remediation steps
+    - Include code examples of fixes
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Explore Vulnerabilities" icon="bug" href="/vulnerabilities/sql-injection">
+    Detailed documentation of each vulnerability
+  </Card>
+  <Card title="Mitigation Guides" icon="shield" href="/resources/flask-safe-api">
+    Learn how to fix discovered vulnerabilities
+  </Card>
+  <Card title="Architecture Review" icon="sitemap" href="/architecture">
+    Understand the application structure
+  </Card>
+  <Card title="Secure Coding" icon="code" href="/resources/secure-coding">
+    Best practices for secure development
+  </Card>
+</CardGroup>

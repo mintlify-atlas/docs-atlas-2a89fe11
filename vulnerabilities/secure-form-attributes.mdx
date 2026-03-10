@@ -1,0 +1,465 @@
+---
+title: 'Secure Form Attributes'
+description: 'Implement HTML5 form validation and security attributes to protect user input'
+icon: 'input-text'
+---
+
+<Info>
+  HTML form attributes define the behaviors and properties of form elements, providing client-side validation and security controls that improve both user experience and application security.
+</Info>
+
+## Overview
+
+HTML5 provides powerful form attributes that validate user input on the client side, prevent common attack vectors, and improve the overall security posture of your web application.
+
+### Current Vulnerabilities
+
+Inspecting the current templates reveals significant security gaps:
+
+**`templates/signup.html:4-17`** - Missing critical attributes:
+- No input validation patterns
+- No length restrictions
+- No required field enforcement
+- Incorrect input type for date of birth
+- No autocomplete controls
+
+**`templates/index.html:3-27`** - Minimal security:
+- Only `required` attribute on username/password
+- No pattern validation
+- No maxlength restrictions
+- No input sanitization hints
+
+## Essential Security Attributes
+
+### Pattern Attribute
+
+The `pattern` attribute uses regular expressions to validate input format before submission.
+
+<ParamField path="pattern" type="regex">
+  Specifies a regular expression that the form control's value must match. The browser validates the input against this pattern before allowing form submission.
+</ParamField>
+
+**Email Pattern Example:**
+```html
+<input 
+    pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$"
+    type="email"
+    name="email"
+/>
+```
+
+**Password Pattern Example:**
+```html
+<input 
+    pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*_=+-]).{8,16}$"
+    type="password"
+    name="password"
+/>
+```
+
+This pattern requires:
+- At least one lowercase letter
+- At least one uppercase letter  
+- At least one digit
+- At least one special character
+- Length between 8-16 characters
+
+### Maxlength Attribute
+
+Limits the number of characters a user can enter, protecting against buffer overflow and script injection attacks.
+
+<ParamField path="maxlength" type="number">
+  Sets the maximum length of characters a user can input. Helps secure against long strings containing malicious scripts.
+</ParamField>
+
+```html
+<input maxlength="32" type="email" name="email" />
+<input maxlength="64" type="password" name="password" />
+```
+
+### Required Attribute
+
+Ensures the field must be filled before form submission.
+
+<ParamField path="required" type="boolean">
+  Prevents form submission if the field is empty. Essential for mandatory fields.
+</ParamField>
+
+```html
+<input required type="text" name="username" />
+```
+
+### Placeholder Attribute
+
+Provides user guidance through type hints, improving UX while indicating expected format.
+
+<ParamField path="placeholder" type="string">
+  Displays guiding text in the input field to help users understand what data is expected. Improves user experience through type hints.
+</ParamField>
+
+```html
+<input 
+    placeholder="Email address: you@address.com.au"
+    type="email"
+/>
+```
+
+### Autocomplete Attribute
+
+Controls whether browsers should autofill sensitive information.
+
+<ParamField path="autocomplete" type="string">
+  Controls browser autofill behavior. Use `off` for sensitive fields like passwords, or specific values like `email`, `username`, `new-password`.
+</ParamField>
+
+```html
+<input autocomplete="off" type="password" name="password" />
+<input autocomplete="email" type="email" name="email" />
+```
+
+## Secure Implementation Examples
+
+<CodeGroup>
+  ```html templates/signup.html (Secured)
+  {% extends 'layout.html' %}
+  {% block content %}
+  <h1>Signup Form</h1>
+  <form action="/signup.html" method="POST" class="box">
+      <div class="input__wrapper">
+          <input 
+              id="username"
+              type="text" 
+              name="username" 
+              placeholder="Username (3-20 characters)"
+              class="input__field"
+              pattern="[a-zA-Z0-9_]{3,20}"
+              maxlength="20"
+              minlength="3"
+              required
+              autocomplete="username"
+              title="Username must be 3-20 characters, letters, numbers, and underscores only"
+          />
+      </div>            
+      <div class="input__wrapper">
+          <input 
+              id="password"
+              type="password" 
+              name="password" 
+              placeholder="Password (8-16 characters)"
+              class="input__field"
+              pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*_=+-]).{8,16}$"
+              maxlength="16"
+              minlength="8"
+              required
+              autocomplete="new-password"
+              title="Password must contain uppercase, lowercase, number, special character, 8-16 chars"
+          />
+      </div>
+      <div class="input__wrapper">
+          <input 
+              id="dob"
+              type="date" 
+              name="dob" 
+              placeholder="Date of Birth"
+              class="input__field"
+              required
+              max="2010-01-01"
+              autocomplete="bday"
+              title="You must be at least 13 years old"
+          />
+      </div>
+      <div class="input__wrapper">
+          <button type="submit" class="btn">Submit</button>
+      </div>
+  </form>
+  {% endblock %}
+  ```
+
+  ```html templates/index.html (Secured)
+  {% extends 'layout.html' %} 
+  {% block content %}
+  <h1>Login</h1>
+  <form action="/" method="post" class="box">
+    <div class="input__wrapper">
+      <input
+        id="username"
+        type="text"
+        name="username"
+        placeholder="Username"
+        class="input__field"
+        pattern="[a-zA-Z0-9_]{3,20}"
+        maxlength="20"
+        minlength="3"
+        required
+        autocomplete="username"
+        title="Enter your username"
+      />
+    </div>
+    <div class="input__wrapper">
+      <input
+        id="password"
+        type="password"
+        name="password"
+        placeholder="Password"
+        class="input__field"
+        maxlength="64"
+        required
+        autocomplete="current-password"
+        title="Enter your password"
+      />
+    </div>
+    <div class="input__wrapper">
+      <input type="submit" class="btn" value="Log In" />
+    </div>
+  </form>
+  <!-- User message -->
+  {% if msg %}
+  <div>{{ msg|safe }}</div>
+  {% endif %}
+  {% endblock %}
+  ```
+
+  ```html Email Input Example
+  <input    
+      id="email" 
+      type="email" 
+      name="email" 
+      maxlength="32" 
+      required  
+      class="email input_field input_field_email"  
+      pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$"  
+      placeholder="Email address: you@address.com.au"
+      autocomplete="email"
+      title="Enter a valid email address"
+  >
+  ```
+
+  ```html Password Input Example
+  <input 
+      id="password" 
+      type="password" 
+      name="password" 
+      maxlength="64" 
+      minlength="8"
+      required  
+      class="password input__field input_field_password"  
+      pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*_=+-]).{8,16}$"  
+      placeholder="Enter password"
+      autocomplete="new-password"
+      title="Password must include uppercase, lowercase, number, and special character"
+  >
+  ```
+</CodeGroup>
+
+## Input Type Security
+
+<Warning>
+  **Incorrect Input Types**
+  
+  In `signup.html:12`, the date of birth field uses `type="dateOfBirth"` which is not a valid HTML5 input type. This should be `type="date"` for proper validation and date picker support.
+</Warning>
+
+Use appropriate HTML5 input types for automatic validation:
+
+<ParamField path="type" type="string">
+  Specifies the type of input control. Using correct types enables browser-native validation and appropriate input methods.
+</ParamField>
+
+| Type | Use Case | Validation |
+|------|----------|------------|
+| `email` | Email addresses | RFC 5322 email format |
+| `password` | Password fields | Masked input |
+| `date` | Date selection | Valid date format |
+| `tel` | Phone numbers | Numeric keyboard on mobile |
+| `url` | Web addresses | Valid URL format |
+| `number` | Numeric input | Numeric values only |
+
+## Server-Side Validation
+
+<Warning>
+  **Client-Side Validation is NOT Enough**
+  
+  All client-side validation can be bypassed. Always implement server-side validation in your Flask routes as the primary defense.
+</Warning>
+
+Implement server-side validation in Flask:
+
+```python main.py
+import re
+from flask import Flask, request, render_template
+
+@app.route("/signup.html", methods=["POST", "GET"])
+def signup():
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        dob = request.form.get("dob", "")
+        
+        # Server-side validation
+        username_pattern = r"^[a-zA-Z0-9_]{3,20}$"
+        password_pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*_=+-]).{8,16}$"
+        
+        if not re.match(username_pattern, username):
+            return render_template("/signup.html", error="Invalid username format")
+        
+        if not re.match(password_pattern, password):
+            return render_template("/signup.html", error="Invalid password format")
+        
+        if len(username) > 20 or len(password) > 64:
+            return render_template("/signup.html", error="Input too long")
+        
+        # Proceed with user creation
+        dbHandler.insertUser(username, password, dob)
+        return render_template("/index.html")
+    else:
+        return render_template("/signup.html")
+```
+
+## Additional Security Attributes
+
+### Title Attribute
+
+Provides tooltip guidance for validation requirements:
+
+```html
+<input 
+    pattern="[a-zA-Z0-9_]{3,20}"
+    title="Username must be 3-20 characters, letters, numbers, and underscores only"
+/>
+```
+
+### Minlength Attribute
+
+Enforces minimum input length:
+
+```html
+<input minlength="8" maxlength="16" type="password" />
+```
+
+### Min/Max Attributes (for dates and numbers)
+
+Restricts value ranges:
+
+```html
+<input type="date" max="2010-01-01" min="1900-01-01" />
+<input type="number" min="0" max="100" />
+```
+
+## Implementation Steps
+
+<Steps>
+  <Step title="Audit Existing Forms">
+    Review all form templates (`signup.html`, `index.html`, `success.html`) and identify missing security attributes.
+  </Step>
+
+  <Step title="Add Pattern Validation">
+    Add regex patterns to validate username, password, email, and other text inputs according to your security requirements.
+  </Step>
+
+  <Step title="Set Length Restrictions">
+    Add `maxlength` and `minlength` attributes to all text inputs to prevent excessively long or short inputs.
+  </Step>
+
+  <Step title="Fix Input Types">
+    Correct any invalid input types (e.g., change `type="dateOfBirth"` to `type="date"`).
+  </Step>
+
+  <Step title="Add Required Fields">
+    Mark all mandatory fields with the `required` attribute.
+  </Step>
+
+  <Step title="Configure Autocomplete">
+    Set appropriate autocomplete values for each field to control browser autofill behavior.
+  </Step>
+
+  <Step title="Add User Guidance">
+    Include `placeholder` and `title` attributes to guide users on expected input format.
+  </Step>
+
+  <Step title="Implement Server-Side Validation">
+    Add matching validation logic in your Flask routes to validate all inputs server-side.
+  </Step>
+</Steps>
+
+## Security Benefits
+
+<Info>
+  **Input Validation**
+  
+  Pattern and length restrictions prevent malformed data from being submitted, reducing injection attack surface.
+</Info>
+
+<Info>
+  **User Experience**
+  
+  Immediate feedback on invalid input improves UX and reduces server load from invalid submissions.
+</Info>
+
+<Info>
+  **Defense in Depth**
+  
+  Combined with server-side validation and CSP, form attributes create multiple layers of security.
+</Info>
+
+## Common Patterns
+
+### Username Pattern
+```regex
+^[a-zA-Z0-9_]{3,20}$
+```
+- 3-20 characters
+- Letters, numbers, underscores only
+
+### Email Pattern
+```regex
+[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$
+```
+- Standard email format validation
+
+### Strong Password Pattern
+```regex
+^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*_=+-]).{8,16}$
+```
+- 8-16 characters
+- At least one uppercase
+- At least one lowercase
+- At least one digit
+- At least one special character
+
+### Phone Number Pattern (US)
+```regex
+^\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$
+```
+- Supports formats: (123) 456-7890, 123-456-7890, 123.456.7890
+
+## Testing Form Validation
+
+<Steps>
+  <Step title="Test Valid Input">
+    Submit forms with valid data matching all patterns and requirements.
+  </Step>
+
+  <Step title="Test Invalid Patterns">
+    Try submitting data that violates pattern rules (e.g., special characters in username).
+  </Step>
+
+  <Step title="Test Length Limits">
+    Attempt to exceed maxlength and submit below minlength requirements.
+  </Step>
+
+  <Step title="Test Required Fields">
+    Try submitting forms with empty required fields.
+  </Step>
+
+  <Step title="Bypass Client Validation">
+    Use browser dev tools to modify HTML and submit invalid data, verifying server-side validation catches it.
+  </Step>
+</Steps>
+
+## Additional Resources
+
+- [MDN Form Validation](https://developer.mozilla.org/en-US/docs/Learn/Forms/Form_validation)
+- [HTML5 Pattern Attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/pattern)
+- [HTML Input Types](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input)
+- [Regular Expressions Reference](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions)
+- [OWASP Input Validation](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html)

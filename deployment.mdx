@@ -1,0 +1,427 @@
+---
+title: 'Deployment & Sandbox Environments'
+description: 'Deploy the Normo Unsecure PWA safely in isolated sandbox environments for security testing'
+---
+
+<Warning>
+  **Critical Security Notice**
+  
+  This application has been designed with intentional security vulnerabilities for educational purposes. It MUST ONLY be deployed in isolated sandbox environments. Never expose this application to production networks or the public internet.
+</Warning>
+
+## Why Sandbox Environments?
+
+Sandboxing creates a safe, isolated environment to run potentially dangerous code without exposing your system, network, or data to risk. When testing security vulnerabilities, a sandbox:
+
+- **Isolates malicious code** from your host machine and network
+- **Prevents unintended damage** to your operating system
+- **Enables safe testing** of exploits and attack vectors
+- **Contains security breaches** within the test environment
+
+<Info>
+  The Normo Unsecure PWA contains vulnerabilities including SQL injection, XSS, CSRF, open redirects, insecure authentication, and more. These require isolated testing environments.
+</Info>
+
+## Recommended Sandbox Environments
+
+### Secure Architecture Sandbox Testing Environment (Recommended)
+
+<Card title="SAST Environment" icon="shield-halved" href="https://github.com/TempeHS/Secure_Architecture_Sandbox_Testing_Environment">
+  Purpose-built multi-layer isolation environment specifically designed for the Normo Unsecure PWA
+</Card>
+
+The **Secure Architecture Sandbox Testing Environment** is the recommended option, featuring:
+
+- **Multi-layer isolation**: Containerized architecture with network isolation
+- **Automated security reports**: SAST, DAST, network, and penetration testing
+- **Pre-installed sample apps**: Ready-to-use vulnerable applications
+- **Custom app upload**: Test your own Flask applications
+- **Ethical penetration testing**: Tools designed for educational contexts
+- **Authentic architecture**: Mirrors real-world security testing environments
+
+<Steps>
+  <Step title="Clone the SAST Environment">
+    ```bash
+    git clone https://github.com/TempeHS/Secure_Architecture_Sandbox_Testing_Environment.git
+    cd Secure_Architecture_Sandbox_Testing_Environment
+    ```
+  </Step>
+  
+  <Step title="Follow Setup Instructions">
+    Refer to the repository's README for detailed setup instructions including Docker configuration and environment initialization.
+  </Step>
+  
+  <Step title="Deploy the Normo Unsecure PWA">
+    Use the environment's upload feature or deploy directly within the containerized architecture.
+  </Step>
+  
+  <Step title="Run Security Tests">
+    Execute SAST, DAST, and penetration tests using the built-in tools and generate comprehensive security reports.
+  </Step>
+</Steps>
+
+### Alternative Sandbox Options
+
+Depending on your resources and requirements, consider these alternatives:
+
+<CardGroup cols={2}>
+  <Card title="GitHub Codespaces" icon="github">
+    **Pros**: Cloud-based, no local setup, instant deployment
+    
+    **Cons**: Requires GitHub account, limited free hours
+    
+    **Setup**: Fork the repository and launch Codespaces from GitHub
+  </Card>
+  
+  <Card title="CodeSandbox.io" icon="code">
+    **Pros**: Browser-based, easy to use, collaborative
+    
+    **Cons**: May require account, limited for advanced testing
+    
+    **Setup**: Import repository via URL
+  </Card>
+  
+  <Card title="Docker Containers" icon="docker">
+    **Pros**: Full isolation, reproducible, portable
+    
+    **Cons**: Requires Docker knowledge, local resources
+    
+    **Setup**: Create Dockerfile and docker-compose.yml
+  </Card>
+  
+  <Card title="Virtual Machine" icon="server">
+    **Pros**: Complete isolation, OS-level separation
+    
+    **Cons**: Resource intensive, requires VM software
+    
+    **Setup**: Install VirtualBox/VMware, create Linux VM
+  </Card>
+  
+  <Card title="Ubuntu Live USB" icon="usb-drive">
+    **Pros**: Portable, no installation, hardware isolation
+    
+    **Cons**: Limited persistence, manual setup each boot
+    
+    **Setup**: Create bootable Ubuntu USB, install Python
+  </Card>
+  
+  <Card title="Qubes OS" icon="cubes">
+    **Pros**: Security-focused OS, domain isolation
+    
+    **Cons**: Steep learning curve, requires dedicated hardware
+    
+    **Setup**: Install Qubes OS in VM, create isolated domain
+  </Card>
+</CardGroup>
+
+## Deployment Methods
+
+### Method 1: Standard Local Deployment
+
+For basic sandbox environments with Python installed:
+
+<Steps>
+  <Step title="Clone and Navigate">
+    ```bash
+    git clone https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA.git
+    cd Normo_Unsecure_PWA
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    ```bash
+    pip install flask
+    # Or install all packages
+    pip install -r requirements.txt
+    ```
+  </Step>
+  
+  <Step title="Run the Application">
+    ```bash
+    python main.py
+    ```
+    
+    The app will start on `http://0.0.0.0:5000` listening on all interfaces.
+  </Step>
+</Steps>
+
+### Method 2: GitHub Codespaces Deployment
+
+<Steps>
+  <Step title="Fork Repository">
+    Navigate to the [Normo Unsecure PWA repository](https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA) and fork it to your account.
+  </Step>
+  
+  <Step title="Launch Codespace">
+    Click **Code** → **Codespaces** → **Create codespace on main**
+  </Step>
+  
+  <Step title="Install and Run">
+    Once the Codespace loads:
+    
+    ```bash
+    pip install flask
+    python main.py
+    ```
+  </Step>
+  
+  <Step title="Access via Port Forward">
+    Codespaces automatically forwards port 5000. Click the **Ports** tab and open the forwarded URL.
+  </Step>
+</Steps>
+
+<Note>
+  **CORS Configuration**: The app has `CORS(app)` enabled specifically for Codespaces CSRF demonstrations. This allows cross-origin requests needed for certain vulnerability testing.
+</Note>
+
+### Method 3: Docker Container Deployment
+
+Create a `Dockerfile` in the project root:
+
+```dockerfile Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 5000
+
+CMD ["python", "main.py"]
+```
+
+Then build and run:
+
+```bash
+docker build -t normo-unsecure-pwa .
+docker run -p 5000:5000 normo-unsecure-pwa
+```
+
+### Method 4: Virtual Machine Deployment
+
+<Steps>
+  <Step title="Install VM Software">
+    Download and install VirtualBox, VMware Workstation, or Hyper-V.
+  </Step>
+  
+  <Step title="Create Ubuntu VM">
+    - Download Ubuntu Server/Desktop ISO
+    - Create a new VM with at least 2GB RAM
+    - Install Ubuntu in the VM
+  </Step>
+  
+  <Step title="Install Prerequisites">
+    Inside the VM:
+    
+    ```bash
+    sudo apt update
+    sudo apt install python3 python3-pip git -y
+    ```
+  </Step>
+  
+  <Step title="Deploy Application">
+    Follow the standard deployment steps inside the VM.
+  </Step>
+</Steps>
+
+## Network Access Configuration
+
+### Local Testing Only
+
+By default, the application runs on `host="0.0.0.0"`, making it accessible on all network interfaces. For strict local-only testing:
+
+```python main.py (line 73)
+app.run(debug=True, host="127.0.0.1", port=5000)  # Localhost only
+```
+
+### Network Testing (Teacher-Hosted Scenario)
+
+If a teacher is hosting the app for students to perform black-box testing:
+
+1. **Find your LAN IP address**:
+   
+   <CodeGroup>
+   ```bash Windows
+   ipconfig
+   ```
+   
+   ```bash Linux/Mac
+   ifconfig
+   # or
+   ip addr show
+   ```
+   </CodeGroup>
+
+2. **Ensure firewall allows port 5000**:
+   
+   ```bash Linux
+   sudo ufw allow 5000/tcp
+   ```
+
+3. **Students access via**: `http://{teacher-ip}:5000`
+
+<Warning>
+  **Network Isolation**: Even when sharing on a local network for educational purposes, ensure the network is completely isolated from the internet and production systems. Use a dedicated VLAN or isolated lab network.
+</Warning>
+
+### Updating Student Resources for Remote URLs
+
+Many examples in `.student_resources/` assume local testing with `http://127.0.0.1:5000`. If using a remote server, update HTML/JavaScript examples:
+
+```javascript Example Update
+// Change from:
+fetch('http://127.0.0.1:5000/success.html', {...})
+
+// To:
+fetch('http://teacher-ip:5000/success.html', {...})
+```
+
+## Application Configuration
+
+The Flask application is configured in `main.py` with these settings:
+
+```python main.py (lines 70-73)
+if __name__ == "__main__":
+    app.config["TEMPLATES_AUTO_RELOAD"] = True  # Auto-reload templates
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # Disable caching
+    app.run(debug=True, host="0.0.0.0", port=5000)
+```
+
+### Configuration Breakdown
+
+| Setting | Value | Purpose |
+|---------|-------|----------|
+| `debug` | `True` | Enables debug mode with detailed error pages (vulnerability) |
+| `host` | `0.0.0.0` | Listens on all network interfaces |
+| `port` | `5000` | Default Flask development port |
+| `TEMPLATES_AUTO_RELOAD` | `True` | Automatically reloads templates on change |
+| `SEND_FILE_MAX_AGE_DEFAULT` | `0` | Disables browser caching |
+| `CORS` | Enabled | Allows cross-origin requests for CSRF demos |
+
+<Info>
+  **Debug Mode**: Running with `debug=True` exposes sensitive information in error messages and enables the Werkzeug debugger. This is intentional for learning about debug mode vulnerabilities.
+</Info>
+
+## Database Setup
+
+The application uses SQLite with the database located at `database_files/database.db`. The database is accessed via `user_management.py`:
+
+```python user_management.py (example)
+con = sql.connect("database_files/database.db")
+```
+
+### Database Schema
+
+**users table**:
+- `username` (TEXT)
+- `password` (TEXT) - stored in plain text (vulnerability)
+- `dateOfBirth` (TEXT)
+
+**feedback table**:
+- `id` (INTEGER PRIMARY KEY)
+- `feedback` (TEXT)
+
+<Warning>
+  The database operations use string formatting in SQL queries, creating SQL injection vulnerabilities. This is intentional for security analysis training.
+</Warning>
+
+## Security Testing in Sandboxes
+
+Once deployed in a sandbox, students should:
+
+### 1. White Box Analysis
+
+Review the source code to identify vulnerabilities:
+
+- **main.py**: Open redirects, CORS configuration, debug mode
+- **user_management.py**: SQL injection, plain text passwords, timing attacks
+- **templates**: XSS vulnerabilities in rendered content
+
+### 2. Grey Box Analysis
+
+Combine code review with active testing:
+
+- Test identified vulnerabilities with payloads
+- Verify assumptions from code review
+- Map application flow and attack surface
+
+### 3. Black Box Analysis
+
+Test without source code access (if teacher-hosted):
+
+- Penetration testing with tools like ZAP Proxy
+- Manual vulnerability discovery
+- Network traffic analysis
+
+### 4. Automated Scanning
+
+Use security tools available in the sandbox:
+
+- **OWASP ZAP**: Automated vulnerability scanning
+- **Bandit**: Python security linter
+- **Safety**: Dependency vulnerability checker
+
+<CardGroup cols={2}>
+  <Card title="OWASP WSTG" icon="book" href="https://owasp.org/www-project-web-security-testing-guide/v42/">
+    Comprehensive web security testing guide
+  </Card>
+  <Card title="ZAP Proxy" icon="shield" href="https://www.zaproxy.org/">
+    Open source penetration testing tool
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Steps>
+  <Step title="Set Up Sandbox">
+    Choose and configure your preferred sandbox environment from the options above.
+  </Step>
+  
+  <Step title="Deploy Application">
+    Follow the deployment method appropriate for your sandbox choice.
+  </Step>
+  
+  <Step title="Begin Security Analysis">
+    Start identifying vulnerabilities using white/grey/black box approaches.
+  </Step>
+  
+  <Step title="Document Findings">
+    Prepare your security assessment report with discovered vulnerabilities and impact analysis.
+  </Step>
+  
+  <Step title="Implement Patches">
+    Use resources in `.student_resources/` to develop and test security patches.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Cannot Access Application on Network
+
+- Verify firewall settings allow port 5000
+- Check `host="0.0.0.0"` in main.py
+- Ensure devices are on the same network
+- Test with `curl http://server-ip:5000` from another machine
+
+### Database Errors
+
+- Ensure `database_files/database.db` exists
+- Check file permissions in the sandbox
+- Verify SQLite3 is available in the environment
+
+### Import Errors in Sandbox
+
+- Reinstall requirements: `pip install -r requirements.txt`
+- Use virtual environment for dependency isolation
+- Check Python version compatibility (3.x required)
+
+### Port Conflicts
+
+If port 5000 is in use:
+
+```python
+app.run(debug=True, host="0.0.0.0", port=5001)  # Use different port
+```

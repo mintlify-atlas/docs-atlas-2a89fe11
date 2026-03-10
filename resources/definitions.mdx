@@ -1,0 +1,138 @@
+---
+title: 'Cybersecurity Definitions'
+description: 'Essential cybersecurity metalanguage and terminology for software engineering security analysis'
+icon: 'book'
+---
+
+## Overview
+
+Understanding cybersecurity terminology is fundamental to identifying, analyzing, and mitigating security vulnerabilities in software applications. This reference provides key definitions aligned with the NESA HSC Software Engineering Course requirements.
+
+## Core Cybersecurity Metalanguage
+
+<CardGroup cols={2}>
+  <Card title="Attack Vector" icon="network-wired">
+    An approach to exploiting multiple vulnerabilities in a coordinated manner to compromise a system.
+  </Card>
+  
+  <Card title="Vulnerability" icon="shield-exclamation">
+    A weakness in a system, hardware, or software that can be exploited by threat actors.
+  </Card>
+  
+  <Card title="Exploit" icon="bug">
+    The act of using a vulnerability to enter or compromise software or a system.
+  </Card>
+  
+  <Card title="Threat Actor" icon="user-secret">
+    A person or group with malicious intentions seeking to compromise systems or data.
+  </Card>
+</CardGroup>
+
+## Attack Methodologies
+
+<Accordion title="Brute Force Attacks">
+  Use trial and error or bulk attempts to crack a system or software. Common examples include:
+  - Password cracking through dictionary attacks
+  - Testing multiple input combinations
+  - Automated credential stuffing
+  
+  <Info>
+  Brute force attacks can be mitigated through rate limiting, account lockouts, and multi-factor authentication.
+  </Info>
+</Accordion>
+
+<Accordion title="Social Engineering">
+  Use of deception to manipulate individuals into divulging confidential or personal information. This is often the weakest link in security as it targets human behavior rather than technical vulnerabilities.
+  
+  **Key Characteristics:**
+  - Exploits trust and authority
+  - Often involves impersonation
+  - May combine multiple tactics
+  - Can bypass technical security measures
+</Accordion>
+
+## Phishing Attack Types
+
+<ResponseField name="Phishing" type="General Attack">
+  A wide-base attack that is 'fishing' for success by casting a broad net. Typically involves:
+  - Mass email campaigns
+  - Generic messages to large audiences
+  - Low success rate but high volume
+  - Minimal personalization
+</ResponseField>
+
+<ResponseField name="Spear Phishing" type="Targeted Attack">
+  A targeted attack where the threat actor has personal knowledge of the victim. Characteristics include:
+  - Research-based personalization
+  - References to specific details about the victim
+  - Higher success rate due to credibility
+  - Often targets specific individuals or organizations
+</ResponseField>
+
+<ResponseField name="Whale Phishing" type="High-Value Target Attack">
+  A targeted attack by a threat actor where the victim is known to have escalated authorization in a system or software. These attacks:
+  - Target executives, administrators, or privileged users
+  - Aim to gain access to sensitive systems or data
+  - Often involve sophisticated social engineering
+  - Can result in significant organizational damage
+</ResponseField>
+
+## Definitions Reference Table
+
+The complete definitions table from the Normo Unsecure PWA project:
+
+| Metalanguage       | Definition                                                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Attack vector      | An approach to exploiting multiple vulnerabilities                                                                     |
+| Brute force        | Use trial and error or bulk attempts to crack a system or software                                                     |
+| Exploit            | The act of using a vulnerability to enter or compromise software or system                                             |
+| Phishing           | A wide base attack that is 'fishing' for success                                                                       |
+| Social engineering | Use of deception to manipulate individuals into divulging confidential or personal information                         |
+| Spear phishing     | A targeted attack where the threat actor has personal knowledge of the victim                                         |
+| Threat actor       | A person or group with malicious intentions                                                                            |
+| Vulnerability      | A weakness in a system, hardware or software                                                                           |
+| Whale phishing     | A targeted attack by a threat actor where the victim is known to have escalated authorisation in a system or software |
+
+## Additional Security Terminology
+
+<Accordion title="Testing Approaches">
+  **White-box Testing**: Testing with full knowledge of the application's internal structure and source code.
+  
+  **Grey-box Testing**: Testing with partial knowledge of the application's internals.
+  
+  **Black-box Testing**: Testing with no knowledge of internal implementation, only the external interface.
+  
+  **Penetration Testing**: Simulated attacks to identify exploitable vulnerabilities.
+</Accordion>
+
+<Accordion title="Security Testing Types">
+  **SAST (Static Application Security Testing)**: Automated analysis of source code before compilation to identify security vulnerabilities.
+  
+  **DAST (Dynamic Application Security Testing)**: Testing methodology examining applications while running, with no access to source code.
+  
+  **Vulnerability Assessment**: Systematic review of security weaknesses in infrastructure, processes, and practices.
+</Accordion>
+
+## External Resources
+
+<CardGroup cols={2}>
+  <Card title="OWASP Testing Guide" icon="shield-halved" href="https://owasp.org/www-project-web-security-testing-guide/v42/">
+    Comprehensive web application security testing resource
+  </Card>
+  
+  <Card title="ZAPROXY" icon="spider" href="https://www.zaproxy.org/">
+    Open-source penetration testing application
+  </Card>
+  
+  <Card title="NESA Syllabus" icon="graduation-cap" href="https://curriculum.nsw.edu.au/learning-areas/tas/software-engineering-11-12-2022/content/n12/fa039e749d">
+    NSW Software Engineering curriculum specifications
+  </Card>
+  
+  <Card title="CyberChef" icon="wrench" href="https://gchq.github.io/CyberChef/">
+    Data analysis and decoding toolkit
+  </Card>
+</CardGroup>
+
+<Info>
+  These definitions are specifically aligned with the NESA HSC Software Engineering Course specifications and support the security analysis of the Normo Unsecure PWA.
+</Info>

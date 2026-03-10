@@ -1,0 +1,417 @@
+---
+title: 'Incident Response'
+description: 'Cyber security incident response procedures and best practices for software engineers'
+icon: 'siren-on'
+---
+
+## Overview
+
+Cyber security incidents are inevitable in modern software applications. Having a well-defined incident response process is critical for minimizing damage, maintaining user trust, and ensuring regulatory compliance. This guide outlines incident response procedures aligned with Australian Government guidelines.
+
+<Card title="Australian Government - Responding to Cyber Security Incidents" icon="landmark" href="https://www.cyber.gov.au/resources-business-and-government/essential-cyber-security/ism/cyber-security-guidelines/guidelines-cyber-security-incidents">
+  Official Australian Government guidelines for cyber security incident response
+</Card>
+
+## What Constitutes a Security Incident?
+
+A cyber security incident is any event that compromises the confidentiality, integrity, or availability of information systems or data.
+
+<CardGroup cols={2}>
+  <Card title="Data Breach" icon="database">
+    Unauthorized access to or disclosure of sensitive data including user credentials, personal information, or proprietary data
+  </Card>
+  
+  <Card title="System Compromise" icon="server">
+    Unauthorized access to systems, privilege escalation, or malware infection affecting application infrastructure
+  </Card>
+  
+  <Card title="Service Disruption" icon="circle-exclamation">
+    Denial of service attacks, system outages, or performance degradation caused by malicious activity
+  </Card>
+  
+  <Card title="Code Injection" icon="code">
+    Successful exploitation of vulnerabilities like SQL injection, XSS, or CSRF resulting in unauthorized code execution
+  </Card>
+</CardGroup>
+
+## Incident Response Lifecycle
+
+<Info>
+  The Australian Signals Directorate's Australian Cyber Security Centre (ASD's ACSC) recommends a structured approach to incident response.
+</Info>
+
+### 1. Preparation
+
+<Accordion title="Before an Incident Occurs">
+  **Establish Logging & Monitoring**
+  - Implement comprehensive event logging
+  - Configure log aggregation and analysis
+  - Set up alerting for suspicious activities
+  - Ensure logs include timestamps and sufficient detail
+  
+  <Info>
+  The Australian Signals Directorate recommends event logging as best practice for threat detection. [Learn more](https://www.cyber.gov.au/resources-business-and-government/maintaining-devices-and-systems/system-hardening-and-administration/system-monitoring/best-practices-event-logging-threat-detection)
+  </Info>
+  
+  **Define Response Team & Roles**
+  - Identify incident response team members
+  - Assign clear responsibilities
+  - Establish communication channels
+  - Document escalation procedures
+  
+  **Create Response Procedures**
+  - Document step-by-step response plans
+  - Define incident classification criteria
+  - Establish evidence collection procedures
+  - Prepare communication templates
+  
+  **Prepare Technical Resources**
+  - Maintain backup and recovery systems
+  - Keep security tools and patches up to date
+  - Document system architectures and dependencies
+  - Establish secure communication channels
+</Accordion>
+
+### 2. Detection & Analysis
+
+<Accordion title="Identifying and Understanding Incidents">
+  **Detection Sources**
+  - Automated security alerts
+  - Log analysis and anomaly detection
+  - User reports of suspicious behavior
+  - Security testing and vulnerability scans
+  - External notifications (security researchers, law enforcement)
+  
+  **Initial Analysis Steps**
+  1. Verify the incident is genuine (not a false positive)
+  2. Determine the scope and severity
+  3. Identify affected systems and data
+  4. Document initial findings with timestamps
+  5. Assess immediate risk to operations and data
+  
+  <ResponseField name="Incident Severity Classification" type="Critical Factors">
+    - Type and sensitivity of data involved
+    - Number of users or systems affected
+    - Potential for ongoing damage
+    - Regulatory or compliance implications
+    - Public visibility and reputation impact
+  </ResponseField>
+</Accordion>
+
+### 3. Containment
+
+<Accordion title="Stopping the Damage">
+  **Short-term Containment**
+  - Isolate affected systems from the network
+  - Disable compromised user accounts
+  - Block malicious IP addresses or domains
+  - Apply temporary security controls
+  - Preserve evidence for investigation
+  
+  **Long-term Containment**
+  - Apply security patches to vulnerable systems
+  - Implement additional monitoring on affected systems
+  - Review and strengthen access controls
+  - Prepare for system rebuilding if necessary
+  
+  <Info>
+  Balance containment actions with evidence preservation—some actions may destroy forensic data needed for investigation.
+  </Info>
+</Accordion>
+
+### 4. Eradication
+
+<Accordion title="Removing the Threat">
+  **Elimination Steps**
+  - Remove malware or malicious code
+  - Close exploited vulnerabilities
+  - Delete unauthorized user accounts or access
+  - Reset compromised credentials
+  - Verify threat actor access has been removed
+  
+  **Root Cause Analysis**
+  - Identify how the incident occurred
+  - Determine what vulnerabilities were exploited
+  - Review security controls that failed
+  - Document lessons learned
+</Accordion>
+
+### 5. Recovery
+
+<Accordion title="Restoring Normal Operations">
+  **System Restoration**
+  - Rebuild or restore affected systems from clean backups
+  - Apply all security patches and updates
+  - Verify system integrity before reconnecting to network
+  - Restore data from verified clean backups
+  - Test functionality thoroughly
+  
+  **Enhanced Monitoring**
+  - Increase monitoring of recovered systems
+  - Watch for signs of persistent threats
+  - Verify security controls are functioning
+  - Monitor for similar attack patterns
+  
+  **User Communication**
+  - Notify affected users appropriately
+  - Provide guidance on protective actions
+  - Restore user confidence through transparency
+</Accordion>
+
+### 6. Post-Incident Activities
+
+<Accordion title="Learning and Improvement">
+  **Incident Review**
+  - Conduct post-incident meeting with response team
+  - Document what worked well and what didn't
+  - Analyze response time and effectiveness
+  - Calculate incident costs and impacts
+  
+  **Update Procedures**
+  - Revise incident response plans based on lessons learned
+  - Update security controls and configurations
+  - Improve detection capabilities
+  - Enhance training and awareness programs
+  
+  **Reporting**
+  - Complete formal incident report
+  - Report to regulatory bodies if required
+  - Share threat intelligence with relevant parties
+  - Update stakeholders on remediation status
+</Accordion>
+
+## Logging Best Practices
+
+<Info>
+  Effective logging is fundamental to incident detection and response. The Australian Cyber Security Centre provides [comprehensive guidance on event logging](https://www.cyber.gov.au/resources-business-and-government/maintaining-devices-and-systems/system-hardening-and-administration/system-monitoring/best-practices-event-logging-threat-detection).
+</Info>
+
+<Accordion title="What to Log">
+  **Authentication Events**
+  - Login attempts (successful and failed)
+  - Logout events
+  - Password changes
+  - Account creation, modification, deletion
+  - Privilege escalation
+  
+  **Application Events**
+  - Access to sensitive data or functions
+  - Input validation failures
+  - Exception and error conditions
+  - Security control failures
+  - Configuration changes
+  
+  **System Events**
+  - Service starts and stops
+  - Network connections
+  - File access and modifications
+  - Resource exhaustion conditions
+</Accordion>
+
+<Accordion title="What NOT to Log">
+  <ResponseField name="Sensitive Data" type="Never Log">
+    - Passwords or password hashes
+    - API keys or tokens
+    - Session identifiers
+    - Credit card numbers or financial data
+    - Personal health information
+    - Cryptographic keys
+  </ResponseField>
+  
+  <Info>
+  Logging sensitive data creates additional security risks and privacy compliance issues.
+  </Info>
+</Accordion>
+
+<Accordion title="Log Management Requirements">
+  **Essential Log Attributes**
+  - Timestamps (synchronized across systems)
+  - User or system identity
+  - Event type and description
+  - Source IP address or system
+  - Outcome (success/failure)
+  - Sufficient detail for analysis
+  
+  **Log Security**
+  - Protect logs from unauthorized access
+  - Prevent log tampering or deletion
+  - Implement log retention policies
+  - Regularly review and analyze logs
+  - Ensure adequate storage capacity
+</Accordion>
+
+## Defensive Data Handling
+
+### Input Validation
+
+<Accordion title="Preventing Malicious Input">
+  Input validation is a critical security control where input is checked to be valid data. Best practices:
+  
+  - Validate data on entry before processing or storage
+  - Use allow-lists (whitelisting) rather than deny-lists (blacklisting)
+  - Validate data type, length, format, and range
+  - Reject invalid data with appropriate user feedback
+  - Never trust client-side validation alone
+  
+  **Implementation Approaches**
+  - Front-end validation using secure form attributes
+  - Back-end validation using regular expressions
+  - Framework-specific validation mechanisms
+  - Database constraints and parameterized queries
+</Accordion>
+
+### Data Sanitization
+
+<Accordion title="Cleaning Potentially Malicious Data">
+  Data sanitization is the process of replacing potentially malicious characters with non-processing codes so text renders safely without executing malicious code.
+  
+  **Example:**
+  - Malicious string: `"';DROP TABLE users"`
+  - Sanitized string: `&#39;&#59;DROP TABLE users`
+  - Renders as: `';DROP TABLE users` (harmless text)
+  
+  **Best Practices**
+  - Make all strings web-safe before storing or processing
+  - Use established libraries (Python html, Jinja2, etc.)
+  - Apply context-appropriate encoding
+  - Sanitize data for logs and error messages
+</Accordion>
+
+### Exception Handling
+
+<Accordion title="Secure Error Management">
+  **Code Review Questions for Exception Handling**
+  - What approach for error handling is being used?
+  - What details about errors are displayed to users?
+  - Are errors logged with sufficient detail for analysis?
+  - Are database errors logged appropriately?
+  - Does error handling prevent information disclosure?
+  
+  **Best Practices**
+  - Use try-except blocks for error-prone operations
+  - Log detailed error information securely
+  - Display generic error messages to users
+  - Never expose stack traces, database errors, or system paths
+  - Include exception handling in all data validation routines
+</Accordion>
+
+## Testing for Security Incidents
+
+<CardGroup cols={2}>
+  <Card title="Vulnerability Scanning" icon="magnifying-glass">
+    Regular automated scans to identify known vulnerabilities before they're exploited
+  </Card>
+  
+  <Card title="Penetration Testing" icon="user-secret">
+    Simulated attacks to find and exploit vulnerabilities in controlled conditions
+  </Card>
+  
+  <Card title="Security Testing Approaches" icon="vial">
+    Comprehensive testing methodologies aligned with SDLC phases
+  </Card>
+  
+  <Card title="Log Analysis" icon="chart-line">
+    Regular review of logs to detect anomalous behavior and potential incidents
+  </Card>
+</CardGroup>
+
+## Security Testing Throughout SDLC
+
+<Accordion title="Security by Design Processes">
+  | Phase | Security Activities |
+  |-------|--------------------|
+  | **Requirements** | • Gather security/privacy requirements<br/>• Vulnerability assessment |
+  | **Design** | • Threat modeling<br/>• Security design review<br/>• Security test design |
+  | **Development** | • Code reviews<br/>• Static Application Security Testing (SAST) |
+  | **Integration** | • Risk assessment<br/>• Dynamic Application Security Testing (DAST)<br/>• Grey-box penetration testing |
+  | **Testing & Debugging** | • Code reviews<br/>• SAST & DAST<br/>• Penetration testing |
+  | **Installation** | • Penetration testing<br/>• Vulnerability assessment |
+  | **Maintenance** | • Log monitoring & reporting<br/>• Vulnerability assessment |
+</Accordion>
+
+## Incident Response Tools & Resources
+
+<CardGroup cols={2}>
+  <Card title="ZAPROXY" icon="spider" href="https://www.zaproxy.org/">
+    Open-source penetration testing application for identifying vulnerabilities
+  </Card>
+  
+  <Card title="OWASP Testing Guide" icon="book" href="https://owasp.org/www-project-web-security-testing-guide/v42/">
+    Comprehensive web security testing guide for developers
+  </Card>
+  
+  <Card title="CyberChef" icon="wrench" href="https://gchq.github.io/CyberChef/">
+    Data analysis and decoding toolkit for security analysis
+  </Card>
+  
+  <Card title="Cyber Security Guidelines" icon="shield" href="https://www.cyber.gov.au/resources-business-and-government/essential-cyber-security/ism/cyber-security-guidelines/guidelines-cyber-security-incidents">
+    Australian Government incident response guidelines
+  </Card>
+</CardGroup>
+
+## Reporting Requirements
+
+<Accordion title="When to Report Incidents">
+  **Regulatory Reporting**
+  - Data breaches affecting personal information
+  - Incidents impacting critical infrastructure
+  - Breaches of privacy principles
+  - Financial data compromises
+  
+  **Internal Reporting**
+  - All confirmed security incidents
+  - Suspicious activities requiring investigation
+  - Vulnerability discoveries
+  - Security control failures
+  
+  **External Reporting**
+  - Law enforcement (for criminal activity)
+  - Affected users and customers
+  - Regulatory authorities (as required)
+  - Business partners (if their systems are affected)
+</Accordion>
+
+## Incident Response Checklist
+
+<Accordion title="Quick Reference for Active Incidents">
+  **Immediate Actions**
+  - [ ] Document incident discovery time and initial observations
+  - [ ] Alert incident response team
+  - [ ] Assess severity and potential impact
+  - [ ] Begin evidence preservation
+  - [ ] Contain the incident to prevent further damage
+  
+  **Investigation**
+  - [ ] Analyze logs for attack vectors and timeline
+  - [ ] Identify affected systems and data
+  - [ ] Determine root cause
+  - [ ] Document all findings
+  
+  **Remediation**
+  - [ ] Remove threat actor access
+  - [ ] Patch exploited vulnerabilities
+  - [ ] Reset compromised credentials
+  - [ ] Restore systems from clean backups
+  - [ ] Verify security controls are functioning
+  
+  **Post-Incident**
+  - [ ] Conduct post-incident review
+  - [ ] Update incident response procedures
+  - [ ] Complete required reporting
+  - [ ] Implement preventive measures
+  - [ ] Update monitoring and detection capabilities
+</Accordion>
+
+<Info>
+  Effective incident response requires preparation, practiced procedures, and continuous improvement. Regular testing of incident response plans ensures teams are ready when real incidents occur.
+</Info>
+
+## Connection to Normo Unsecure PWA
+
+When analyzing the Normo Unsecure PWA, apply incident response thinking:
+
+- What logging is implemented? Is it sufficient for incident detection?
+- How would you detect if vulnerabilities you've found were being exploited?
+- What evidence would be available for incident investigation?
+- How could the application be hardened to prevent or detect incidents?
+- What monitoring should be in place in the production environment?

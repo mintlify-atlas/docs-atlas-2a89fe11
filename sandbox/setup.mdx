@@ -1,0 +1,402 @@
+---
+title: 'Setting Up Sandbox Environments'
+description: 'Step-by-step guide to configuring secure testing environments for the Normo Unsecure PWA'
+---
+
+<Info>
+Choose the sandbox option that best fits your needs. The **Secure Architecture Sandbox Testing Environment** is recommended for comprehensive security testing with automated reporting.
+</Info>
+
+## Prerequisites
+
+Before setting up any sandbox environment, ensure you have:
+
+- A secure, updated browser (Chromium or Microsoft Edge)
+- Basic understanding of command-line interfaces
+- Git installed (for most options)
+- Sufficient system resources for your chosen sandbox method
+
+## Secure Architecture Sandbox
+
+<Card title="Recommended Solution" icon="star">
+The [Secure Architecture Sandbox Testing Environment](https://github.com/TempeHS/Secure_Architecture_Sandbox_Testing_Environment) has been **specifically designed** for sandbox testing of the Unsecure PWA.
+</Card>
+
+### Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-Layer Isolation" icon="layer-group">
+    Authentic containerized architecture with multiple isolation layers for maximum security.
+  </Card>
+  <Card title="Automated Reporting" icon="file-chart-column">
+    Generates SAST, DAST, network, and penetration testing reports automatically.
+  </Card>
+  <Card title="Pre-Installed Apps" icon="boxes-stacked">
+    Sample vulnerable applications pre-installed for immediate testing.
+  </Card>
+  <Card title="Custom App Upload" icon="upload">
+    Upload and test your own Flask applications within the secure environment.
+  </Card>
+  <Card title="Educational Pen Testing" icon="graduation-cap">
+    Ethically designed penetration testing tools specifically for education context.
+  </Card>
+  <Card title="Network Analysis" icon="network-wired">
+    Built-in network monitoring and analysis capabilities.
+  </Card>
+</CardGroup>
+
+### Setup Instructions
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/TempeHS/Secure_Architecture_Sandbox_Testing_Environment.git
+    cd Secure_Architecture_Sandbox_Testing_Environment
+    ```
+  </Step>
+  <Step title="Follow Installation Guide">
+    Refer to the repository's README for detailed installation and configuration instructions specific to your operating system.
+  </Step>
+  <Step title="Deploy Normo Unsecure PWA">
+    Upload or clone the Normo Unsecure PWA within the sandbox environment according to the sandbox documentation.
+  </Step>
+  <Step title="Access Testing Tools">
+    Use the integrated SAST, DAST, and penetration testing tools provided by the environment.
+  </Step>
+  <Step title="Generate Reports">
+    Run automated scans and generate comprehensive security reports for analysis.
+  </Step>
+</Steps>
+
+<Warning>
+Always ensure the Secure Architecture Sandbox is properly isolated from your production network before deploying vulnerable applications.
+</Warning>
+
+## GitHub Codespaces
+
+GitHub Codespaces provides a cloud-based development environment with built-in isolation, perfect for quick setup without local installation.
+
+### Setup Instructions
+
+<Steps>
+  <Step title="Navigate to Repository">
+    Go to the [Normo Unsecure PWA repository](https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA) on GitHub.
+  </Step>
+  <Step title="Create Codespace">
+    Click the green **Code** button, select the **Codespaces** tab, and click **Create codespace on main**.
+  </Step>
+  <Step title="Wait for Environment Setup">
+    GitHub will automatically provision a containerized development environment with VSCode in your browser.
+  </Step>
+  <Step title="Install Dependencies">
+    ```bash
+    pip install flask
+    # Install any additional dependencies from .student_resources
+    ```
+  </Step>
+  <Step title="Run the Application">
+    ```bash
+    python main.py
+    ```
+    GitHub Codespaces will automatically forward port 5000 and provide a secure URL.
+  </Step>
+  <Step title="Access the Application">
+    Click the forwarded port URL in the terminal or Ports panel to open the application.
+  </Step>
+</Steps>
+
+<Info>
+**Benefits:** No local setup required, automatic environment teardown, built-in VSCode integration, and free tier available for students.
+</Info>
+
+<Accordion title="Important Notes for GitHub Codespaces">
+  - **Port Forwarding:** Codespaces automatically handles port forwarding with HTTPS encryption
+  - **Resource Limits:** Free tier includes 60 hours/month of usage
+  - **Persistence:** Your codespace persists between sessions but can be deleted when not in use
+  - **Isolation:** Each codespace runs in its own container, isolated from your local machine
+  - **Testing URLs:** When testing, use the forwarded URL provided by Codespaces instead of localhost
+</Accordion>
+
+## CodeSandbox
+
+CodeSandbox.io offers a browser-based development environment suitable for quick testing without any local installation.
+
+### Setup Instructions
+
+<Steps>
+  <Step title="Create Account">
+    Sign up at [CodeSandbox.io](https://codesandbox.io) using your GitHub account.
+  </Step>
+  <Step title="Import Repository">
+    Use the "Import from GitHub" feature and enter the Normo Unsecure PWA repository URL.
+  </Step>
+  <Step title="Configure Environment">
+    CodeSandbox will detect the Python Flask application and set up the environment automatically.
+  </Step>
+  <Step title="Install Dependencies">
+    Run the terminal command to install Flask:
+    ```bash
+    pip install flask
+    ```
+  </Step>
+  <Step title="Start the Server">
+    ```bash
+    python main.py
+    ```
+    CodeSandbox provides an instant preview URL.
+  </Step>
+</Steps>
+
+<Warning>
+CodeSandbox is suitable for basic testing but may have limitations for advanced penetration testing tools. Consider using a more robust sandbox for comprehensive security assessments.
+</Warning>
+
+## Docker Containers
+
+Docker provides lightweight containerization for consistent, isolated environments across different host systems.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) installed on your system
+- Basic familiarity with Docker commands
+
+### Setup Instructions
+
+<Steps>
+  <Step title="Create Dockerfile">
+    Create a `Dockerfile` in the Normo Unsecure PWA directory:
+    ```dockerfile
+    FROM python:3.9-slim
+    
+    WORKDIR /app
+    
+    COPY . /app
+    
+    RUN pip install flask
+    
+    EXPOSE 5000
+    
+    CMD ["python", "main.py"]
+    ```
+  </Step>
+  <Step title="Build Docker Image">
+    ```bash
+    docker build -t normo-unsecure-pwa .
+    ```
+  </Step>
+  <Step title="Run Container">
+    ```bash
+    docker run -p 5000:5000 normo-unsecure-pwa
+    ```
+  </Step>
+  <Step title="Access Application">
+    Open your browser and navigate to:
+    - http://localhost:5000
+    - http://127.0.0.1:5000
+  </Step>
+</Steps>
+
+<Accordion title="Advanced Docker Configuration">
+  **Network Isolation:**
+  ```bash
+  # Create isolated network
+  docker network create --internal normo-network
+  
+  # Run container on isolated network
+  docker run --network normo-network -p 5000:5000 normo-unsecure-pwa
+  ```
+
+  **Volume Mounting (for development):**
+  ```bash
+  docker run -p 5000:5000 -v $(pwd):/app normo-unsecure-pwa
+  ```
+
+  **Stop and Remove Container:**
+  ```bash
+  docker ps  # Find container ID
+  docker stop <container_id>
+  docker rm <container_id>
+  ```
+</Accordion>
+
+<Info>
+**Benefits:** Lightweight, portable, consistent environments, easy cleanup, and native isolation from host system.
+</Info>
+
+## Virtual Machines
+
+Virtual machines provide complete OS virtualization with full isolation from your host system, ideal for comprehensive security testing.
+
+### Recommended VM Software
+
+<CardGroup cols={3}>
+  <Card title="VirtualBox" icon="box">
+    Free, open-source virtualization for Windows, macOS, and Linux.
+  </Card>
+  <Card title="VMware Workstation" icon="server">
+    Professional-grade virtualization with advanced features.
+  </Card>
+  <Card title="Hyper-V" icon="windows">
+    Built-in virtualization for Windows Pro and Enterprise.
+  </Card>
+</CardGroup>
+
+### Setup Instructions
+
+<Steps>
+  <Step title="Install VM Software">
+    Download and install your preferred VM software (e.g., [VirtualBox](https://www.virtualbox.org/)).
+  </Step>
+  <Step title="Download Ubuntu ISO">
+    Download the latest Ubuntu Desktop ISO from [ubuntu.com](https://ubuntu.com/download/desktop).
+  </Step>
+  <Step title="Create New VM">
+    - Allocate at least 2GB RAM and 20GB disk space
+    - Set network adapter to NAT or Host-only for isolation
+    - Mount the Ubuntu ISO
+  </Step>
+  <Step title="Install Ubuntu">
+    Boot the VM and follow the Ubuntu installation wizard.
+  </Step>
+  <Step title="Install Dependencies">
+    ```bash
+    sudo apt update
+    sudo apt install python3 python3-pip git
+    ```
+  </Step>
+  <Step title="Clone and Run Application">
+    ```bash
+    git clone https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA.git
+    cd Normo_Unsecure_PWA
+    pip3 install flask
+    python3 main.py
+    ```
+  </Step>
+  <Step title="Access from Host">
+    If using NAT with port forwarding:
+    - Configure port forwarding: Host port 5000 → Guest port 5000
+    - Access via http://localhost:5000 on your host machine
+    
+    If using Host-only network:
+    - Access via VM's IP address (check with `ip addr`)
+  </Step>
+</Steps>
+
+<Warning>
+**Network Configuration:** Use NAT or Host-only networking to ensure the VM cannot access your local network. Never use Bridged mode with vulnerable applications.
+</Warning>
+
+<Accordion title="VM Snapshot Management">
+  Take snapshots before testing to easily restore a clean state:
+  
+  1. **Create baseline snapshot** after initial setup
+  2. **Take snapshot** before each major test
+  3. **Restore snapshot** if system becomes compromised
+  4. **Delete old snapshots** to save disk space
+  
+  This allows you to quickly recover from any security incidents during testing.
+</Accordion>
+
+## Specialized Options
+
+### Ubuntu on USB
+
+Run Ubuntu directly from a USB drive for complete hardware isolation from your main system.
+
+<Steps>
+  <Step title="Create Bootable USB">
+    Use [Rufus](https://rufus.ie/) (Windows) or [Etcher](https://www.balena.io/etcher/) (macOS/Linux) to create a bootable Ubuntu USB with persistence.
+  </Step>
+  <Step title="Boot from USB">
+    Restart your computer and select the USB drive from the boot menu (usually F12, F2, or DEL during startup).
+  </Step>
+  <Step title="Run in Try Mode or Install">
+    Choose "Try Ubuntu" for temporary use or install to the USB for persistent storage.
+  </Step>
+  <Step title="Follow Ubuntu VM Instructions">
+    Follow steps 5-6 from the Virtual Machine setup to deploy the application.
+  </Step>
+</Steps>
+
+<Info>
+**Benefits:** Complete hardware isolation, no VM overhead, portable between machines, and leaves no trace on host system when powered off.
+</Info>
+
+### Qubes OS
+
+[Qubes OS](https://www.qubes-os.org/) is a security-focused operating system that uses virtualization to create isolated compartments (qubes) for different tasks.
+
+<Steps>
+  <Step title="Install Qubes OS">
+    Download and install Qubes OS in a virtual machine or on dedicated hardware. Review [system requirements](https://www.qubes-os.org/doc/system-requirements/).
+  </Step>
+  <Step title="Create Testing Qube">
+    Create a new AppVM (Qube) specifically for security testing:
+    ```bash
+    qvm-create --label red testing-qube --template debian-11
+    ```
+  </Step>
+  <Step title="Install Dependencies in Qube">
+    ```bash
+    sudo apt update
+    sudo apt install python3 python3-pip git
+    ```
+  </Step>
+  <Step title="Deploy Application">
+    Clone and run the Normo Unsecure PWA within the isolated testing qube.
+  </Step>
+</Steps>
+
+<Warning>
+Qubes OS has a steep learning curve and specific hardware requirements. It's recommended for advanced users who need maximum security isolation.
+</Warning>
+
+## Verifying Your Setup
+
+After setting up your sandbox, verify it's working correctly:
+
+<Steps>
+  <Step title="Check Application Access">
+    Navigate to the appropriate URL:
+    - http://localhost:5000
+    - http://127.0.0.1:5000
+    - http://{VM-IP}:5000 (for VMs with specific IP addresses)
+  </Step>
+  <Step title="Verify Network Isolation">
+    Ensure the sandbox cannot access your local network or external resources unless intended.
+  </Step>
+  <Step title="Test Basic Functionality">
+    Try registering a user and logging in to confirm the application is running correctly.
+  </Step>
+  <Step title="Prepare Testing Tools">
+    Install and configure any security testing tools you plan to use (SAST, DAST, penetration testing).
+  </Step>
+</Steps>
+
+## URL Considerations for Testing
+
+<Accordion title="Local vs Remote Testing URLs">
+  Many resources in `.student_resources` assume the app is running locally at `http://127.0.0.1:5000`.
+  
+  **If you're testing remotely** (e.g., teacher-hosted app for black-box testing):
+  - Update HTML/JS examples to use the remote URL
+  - Adjust CORS settings if testing cross-origin requests
+  - Ensure proper network access between tester and hosted app
+  
+  **Example URL patterns:**
+  - **Local:** `http://127.0.0.1:5000`
+  - **LAN:** `http://10.185.x.x:5000` (where x.x is the LAN IP)
+  - **Codespaces:** `https://{random-name}.app.github.dev`
+  - **VM with NAT:** `http://localhost:5000` (with port forwarding)
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Best Practices" icon="list-check" href="/sandbox/best-practices">
+    Learn essential safety guidelines and testing methodologies for your sandbox environment.
+  </Card>
+  <Card title="Security Testing" icon="magnifying-glass" href="/security-testing/overview">
+    Begin your security assessment with SAST, DAST, and penetration testing approaches.
+  </Card>
+</CardGroup>

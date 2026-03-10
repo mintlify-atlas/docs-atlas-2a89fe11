@@ -1,0 +1,423 @@
+---
+title: Security by Design
+description: Understanding security principles and how this app intentionally violates them for educational purposes
+icon: shield
+---
+
+## What is Security by Design?
+
+Security by Design is a proactive approach where security is integrated into every phase of the Software Development Life Cycle (SDLC), rather than being added as an afterthought. It ensures that security and privacy are fundamental considerations from requirements gathering through to maintenance.
+
+<Warning>
+The Normo Unsecure PWA **intentionally violates** security by design principles to create a learning environment for students. This page explains proper security principles and how this app fails to implement them.
+</Warning>
+
+## Security in the SDLC
+
+Security should be considered at every phase of development:
+
+| Phase | Security by Design Processes | What Normo PWA Does Instead |
+|-------|-----------------------------|-----------------------------|
+| **Requirements Definition** | • Gather specific security and privacy requirements<br/>• Vulnerability assessment | ❌ No security requirements defined<br/>❌ No threat assessment performed |
+| **Determining Specifications** | • Explicit security and privacy specifications<br/>• Risk assessment | ❌ No security specifications<br/>❌ Risks deliberately introduced |
+| **Design** | • Threat modelling<br/>• Security design review<br/>• Security tests included in test designs | ❌ Insecure architecture by design<br/>❌ No security controls planned |
+| **Development** | • Code reviews<br/>• Static application security testing | ❌ Vulnerable code intentionally written<br/>❌ No code review process |
+| **Integration** | • Risk assessment<br/>• Code reviews<br/>• Dynamic application security testing<br/>• Grey-box penetration testing | ❌ No integration security testing<br/>❌ Vulnerabilities not addressed |
+| **Testing & Debugging** | • Code reviews<br/>• SAST<br/>• DAST<br/>• Penetration testing | ✅ **This is your phase!**<br/>Students perform security testing |
+| **Installation** | • Penetration testing<br/>• Vulnerability assessment | ⚠️ Sandbox-only deployment required |
+| **Maintenance** | • Log monitoring & reporting<br/>• Vulnerability assessment | ❌ No logging or monitoring implemented |
+
+## Core Security Principles
+
+### 1. Principle of Least Privilege
+
+**What it means:** Users and processes should have the minimum level of access necessary to perform their functions.
+
+**How Normo PWA violates it:**
+
+<CodeGroup>
+
+```python main.py - Accepts All Methods
+@app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+def addFeedback():
+    # ❌ Accepts unnecessary HTTP methods
+    # Should only accept POST for form submission
+```
+
+```python Secure Alternative
+@app.route("/success.html", methods=["POST"])
+def addFeedback():
+    # ✅ Only accepts POST
+    # Principle of least privilege applied to HTTP methods
+```
+
+</CodeGroup>
+
+**Other violations:**
+- `host="0.0.0.0"` exposes app to all network interfaces instead of localhost
+- No role-based access control (RBAC)
+- All users have equal privileges
+
+### 2. Defense in Depth
+
+**What it means:** Multiple layers of security controls should be implemented so that if one fails, others provide protection.
+
+**How Normo PWA violates it:**
+
+| Security Layer | What Should Exist | What Actually Exists |
+|----------------|-------------------|---------------------|
+| **Network** | HTTPS/TLS, Firewall rules | ❌ HTTP only, no network security |
+| **Application** | Input validation, Output encoding | ❌ No validation or encoding |
+| **Authentication** | Strong passwords, MFA, session management | ❌ No password policy, no MFA, no sessions |
+| **Database** | Parameterized queries, encrypted storage | ⚠️ Mixed (some queries secure, others not) |
+| **Logging** | Security event logging, monitoring | ❌ No security logging |
+
+**Real example:**
+
+```python user_management.py:17-39
+def retrieveUsers(username, password):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    # ❌ No input validation layer
+    # ❌ SQL injection vulnerability
+    cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+    # ❌ No rate limiting
+    # ❌ No failed login tracking
+    # ❌ No logging of authentication attempts
+```
+
+A defense-in-depth approach would include:
+1. Input validation before the query
+2. Parameterized queries
+3. Rate limiting to prevent brute force
+4. Failed login tracking and account lockout
+5. Security event logging
+
+### 3. Fail Securely
+
+**What it means:** When systems fail, they should default to a secure state and not expose sensitive information.
+
+**How Normo PWA violates it:**
+
+```python main.py:70-73
+app.run(debug=True, host="0.0.0.0", port=5000)
+```
+
+<Warning>
+`debug=True` causes Flask to display detailed error messages and stack traces when exceptions occur, revealing internal application structure, file paths, and code to attackers.
+</Warning>
+
+**What happens when debug=True:**
+- Full stack traces exposed to users
+- Interactive debugger accessible via browser
+- Source code snippets revealed
+- Database structure exposed in SQL errors
+
+**Secure alternative:**
+
+```python Secure Configuration
+app.config['DEBUG'] = False  # ✅ No debug info in production
+app.config['TESTING'] = False
+
+@app.errorhandler(500)
+def handle_error(e):
+    # ✅ Log the error internally
+    app.logger.error(f"Internal error: {str(e)}")
+    # ✅ Show generic message to user
+    return render_template('error.html', message="An error occurred"), 500
+```
+
+### 4. Secure by Default
+
+**What it means:** Default configurations should be secure, requiring users to explicitly opt into less secure options.
+
+**How Normo PWA violates it:**
+
+<Accordion title="CORS Configuration">
+```python main.py:12-13
+from flask_cors import CORS
+CORS(app)  # ❌ Allows ALL origins by default
+```
+
+This allows any website to make requests to the application, enabling CSRF attacks.
+
+**Secure default:**
+```python
+CORS(app, origins=["https://yourdomain.com"])  # ✅ Whitelist specific origins
+```
+</Accordion>
+
+<Accordion title="Password Storage">
+```python user_management.py:6-14
+def insertUser(username, password, DoB):
+    # ❌ Stores password in plaintext
+    cur.execute(
+        "INSERT INTO users (username,password,dateOfBirth) VALUES (?,?,?)",
+        (username, password, DoB)
+    )
+```
+
+**Secure default:**
+```python
+import bcrypt
+
+def insertUser(username, password, DoB):
+    # ✅ Hash password before storage
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    cur.execute(
+        "INSERT INTO users (username,password,dateOfBirth) VALUES (?,?,?)",
+        (username, hashed, DoB)
+    )
+```
+</Accordion>
+
+### 5. Separation of Concerns
+
+**What it means:** Different aspects of the application should be isolated into distinct modules with well-defined interfaces.
+
+**How Normo PWA violates it:**
+
+```python main.py:46-67
+@app.route("/", methods=["POST", "GET"])
+def home():
+    # ❌ Mixing routing, input handling, business logic, and presentation
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        return redirect(url, code=302)  # ❌ No validation
+    elif request.method == "POST":
+        username = request.form["username"]  # ❌ No validation
+        password = request.form["password"]  # ❌ No validation
+        isLoggedIn = dbHandler.retrieveUsers(username, password)  # ❌ Direct DB call
+        if isLoggedIn:
+            return render_template("/success.html", value=username, state=isLoggedIn)
+```
+
+**Secure separation:**
+
+```python Layered Architecture
+# validators.py - Input validation layer
+def validate_username(username):
+    if not username or len(username) < 3:
+        raise ValueError("Invalid username")
+    return username.strip()
+
+# services.py - Business logic layer
+def authenticate_user(username, password):
+    validated_username = validate_username(username)
+    validated_password = validate_password(password)
+    return dbHandler.retrieveUsers(validated_username, validated_password)
+
+# routes.py - Routing layer
+@app.route("/", methods=["POST"])
+def home():
+    try:
+        username = request.form["username"]
+        password = request.form["password"]
+        if authenticate_user(username, password):
+            return render_template("/success.html", username=username)
+    except ValueError as e:
+        return render_template("/index.html", error=str(e))
+```
+
+### 6. Don't Trust User Input
+
+**What it means:** All user input should be treated as potentially malicious and validated/sanitized before use.
+
+**How Normo PWA violates it:**
+
+<Tabs>
+  <Tab title="SQL Injection">
+```python user_management.py:45
+# ❌ Trusts user input directly in SQL query
+cur.execute(f"INSERT INTO feedback (feedback) VALUES ('{feedback}')")
+```
+
+**Attack:** `feedback = "'); DROP TABLE users; --"`
+
+**Secure:** Use parameterized queries
+```python
+cur.execute("INSERT INTO feedback (feedback) VALUES (?)", (feedback,))
+```
+  </Tab>
+  <Tab title="XSS">
+```python user_management.py:56-59
+# ❌ Writes unescaped user input to HTML
+f = open("templates/partials/success_feedback.html", "w")
+for row in data:
+    f.write("<p>\n")
+    f.write(f"{row[1]}\n")  # ❌ No HTML escaping
+```
+
+**Attack:** `feedback = "<script>alert(document.cookie)</script>"`
+
+**Secure:** Escape HTML
+```python
+import html
+f.write(f"{html.escape(row[1])}\n")
+```
+  </Tab>
+  <Tab title="Open Redirect">
+```python main.py:19-20
+# ❌ Trusts URL parameter without validation
+url = request.args.get("url", "")
+return redirect(url, code=302)
+```
+
+**Attack:** `/?url=https://evil.com/phishing`
+
+**Secure:** Validate against whitelist
+```python
+allowed_urls = ['/index.html', '/signup.html', '/success.html']
+if url in allowed_urls:
+    return redirect(url, code=302)
+else:
+    return redirect('/index.html', code=302)
+```
+  </Tab>
+</Tabs>
+
+### 7. Minimize Attack Surface
+
+**What it means:** Reduce the number of potential entry points and exposed functionality.
+
+**How Normo PWA violates it:**
+
+| Unnecessary Exposure | Impact |
+|---------------------|--------|
+| Accepts all HTTP methods (GET, POST, PUT, PATCH, DELETE) | Increases attack vectors |
+| `host="0.0.0.0"` exposes to all network interfaces | Should use `127.0.0.1` for local development |
+| Debug mode enabled | Exposes interactive debugger and stack traces |
+| CORS allows all origins | Any website can make requests |
+| No authentication on routes | All endpoints publicly accessible |
+| Includes unused dependencies | Increases dependency vulnerability surface |
+
+### 8. Keep Security Simple
+
+**What it means:** Complex security systems are harder to implement correctly and maintain.
+
+**Example of unnecessary complexity:**
+
+```python user_management.py:32-33
+# ⚠️ Simulates random response time for "testing"
+# This actually creates a timing attack vulnerability!
+time.sleep(random.randint(80, 90) / 1000)
+```
+
+This adds complexity that makes the system less secure, not more secure. Attackers can use timing differences to enumerate valid usernames.
+
+**Simple and secure:**
+
+```python
+# ✅ Constant-time comparison
+import hmac
+def constant_time_compare(a, b):
+    return hmac.compare_digest(a.encode(), b.encode())
+```
+
+## Privacy by Design
+
+Privacy by Design complements Security by Design with privacy-specific principles:
+
+<CardGroup cols={2}>
+  <Card title="Data Minimization" icon="filter">
+    **Principle:** Collect only necessary data
+    
+    **Violation:** App collects date of birth (DoB) but never uses it
+  </Card>
+  <Card title="Consent & Control" icon="user-check">
+    **Principle:** Users should control their data
+    
+    **Violation:** No way to view, export, or delete user data
+  </Card>
+  <Card title="Transparency" icon="eye">
+    **Principle:** Clear privacy policies
+    
+    **Violation:** No privacy policy or terms of service
+  </Card>
+  <Card title="Secure Storage" icon="lock">
+    **Principle:** Protect personal data
+    
+    **Violation:** Plaintext passwords, unencrypted database
+  </Card>
+</CardGroup>
+
+## Threat Modeling Exercise
+
+A proper threat model would identify threats and countermeasures:
+
+<Accordion title="Example Threat Model">
+
+| Threat | Attack Vector | Current State | Countermeasure |
+|--------|---------------|---------------|----------------|
+| Attacker steals user passwords | SQL injection in login form | ❌ Vulnerable | Parameterized queries |
+| Attacker bypasses authentication | No session management | ❌ Vulnerable | Implement Flask-Login |
+| Attacker executes JavaScript in victim's browser | XSS in feedback system | ❌ Vulnerable | HTML escape all output |
+| Attacker performs actions on behalf of victim | No CSRF protection | ❌ Vulnerable | Implement CSRF tokens |
+| Attacker intercepts credentials in transit | HTTP instead of HTTPS | ❌ Vulnerable | Configure SSL/TLS |
+| Attacker cracks passwords from database dump | Plaintext password storage | ❌ Vulnerable | Hash with bcrypt + salt |
+| Attacker performs brute force login attempts | No rate limiting | ❌ Vulnerable | Implement Flask-Limiter |
+| Attacker redirects users to phishing site | Open redirect vulnerability | ❌ Vulnerable | Validate redirect URLs |
+
+</Accordion>
+
+## Cost of Insecurity
+
+The later in the SDLC that vulnerabilities are discovered, the more expensive they are to fix:
+
+<Steps>
+  <Step title="Requirements Phase">
+    **Cost Multiplier:** 1x
+    
+    Identifying security requirements early is cheapest
+  </Step>
+  <Step title="Design Phase">
+    **Cost Multiplier:** 5x
+    
+    Architectural changes become more expensive
+  </Step>
+  <Step title="Development Phase">
+    **Cost Multiplier:** 10x
+    
+    Refactoring code is costly
+  </Step>
+  <Step title="Testing Phase">
+    **Cost Multiplier:** 15x
+    
+    Major rework may be required (← **You are here!**)
+  </Step>
+  <Step title="Production Phase">
+    **Cost Multiplier:** 30x+
+    
+    Includes data breach costs, reputation damage, legal liability
+  </Step>
+</Steps>
+
+<Info>
+The Normo Unsecure PWA gives you experience identifying vulnerabilities in the Testing phase. In real-world projects, you should implement security from the Requirements phase onward.
+</Info>
+
+## Your Learning Objectives
+
+As you analyze this application, consider:
+
+1. **Identify violations:** Which security principles does each vulnerability violate?
+2. **Assess impact:** What's the worst-case scenario for each vulnerability?
+3. **Design fixes:** How would you implement proper security by design?
+4. **Prevent recurrence:** What processes would prevent these issues in future projects?
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Testing Approaches" icon="magnifying-glass" href="/testing-approaches">
+    Learn how to systematically test for these vulnerabilities
+  </Card>
+  <Card title="Architecture Review" icon="sitemap" href="/architecture">
+    Understand the technical implementation details
+  </Card>
+  <Card title="Vulnerability Catalog" icon="bug" href="/vulnerabilities/sql-injection">
+    Explore each vulnerability in detail
+  </Card>
+  <Card title="Secure Coding Guide" icon="code" href="/resources/secure-coding">
+    Learn how to implement security by design
+  </Card>
+</CardGroup>

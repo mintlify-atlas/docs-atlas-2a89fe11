@@ -1,0 +1,749 @@
+---
+title: 'Two-Factor Authentication (2FA)'
+description: 'Add an extra layer of security with two-factor authentication using Google Authenticator, email verification, or SMS'
+icon: 'mobile-screen'
+---
+
+## Overview
+
+Two-Factor Authentication (2FA) adds an additional security layer beyond just username and password. Even if an attacker obtains a user's password, they cannot access the account without the second authentication factor.
+
+<Warning>
+**Current Vulnerability:**
+The Normo Unsecure PWA relies solely on username and password authentication. If credentials are compromised through phishing, data breach, or password reuse, attackers gain immediate access to user accounts.
+</Warning>
+
+## What is Two-Factor Authentication?
+
+2FA requires users to provide two different types of evidence to verify their identity:
+
+1. **Something you know**: Password or PIN
+2. **Something you have**: Mobile device, authentication app, or email access
+
+<Info>
+**Common 2FA Methods:**
+- **TOTP (Time-based One-Time Password)**: Google Authenticator, Authy
+- **Email verification codes**: Sent to registered email
+- **SMS codes**: Sent to registered phone number
+- **Hardware tokens**: YubiKey, security keys
+</Info>
+
+## Why 2FA Matters
+
+<Steps>
+  <Step title="Protects against password theft">
+    Stolen passwords are useless without the second factor
+  </Step>
+  <Step title="Prevents credential stuffing">
+    Attackers can't reuse leaked credentials from other breaches
+  </Step>
+  <Step title="Alerts users to attacks">
+    2FA requests notify users of unauthorized login attempts
+  </Step>
+  <Step title="Compliance requirement">
+    Many regulations and standards require multi-factor authentication
+  </Step>
+</Steps>
+
+## Implementation Options
+
+### Option 1: Google Authenticator (TOTP)
+
+Time-based One-Time Passwords generate 6-digit codes that change every 30 seconds.
+
+#### Installation
+
+```bash
+pip install qrcode pyotp
+```
+
+**Required libraries:**
+- `qrcode`: Generates QR code images for easy setup
+- `pyotp`: Implements TOTP for generating and verifying one-time passwords
+
+#### Basic Implementation
+
+<CodeGroup>
+```python Simple TOTP Example
+import pyotp
+import time
+
+def gen_key():
+    """Generate a secret key for the user"""
+    return pyotp.random_base32()
+
+def gen_url(key, username):
+    """Generate provisioning URI for QR code"""
+    return pyotp.totp.TOTP(key).provisioning_uri(
+        name=username,
+        issuer_name='Normo Unsecure PWA'
+    )
+
+def generate_code(key: str):
+    """Generate current TOTP code"""
+    totp = pyotp.TOTP(key)
+    return totp.now()
+
+def verify_code(key: str, code: str):
+    """Verify user-provided code"""
+    totp = pyotp.TOTP(key)
+    return totp.verify(code)
+
+# Example usage
+key = gen_key()  # Store this in database for each user
+print(f"Secret Key: {key}")
+
+uri = gen_url(key, "alice@example.com")
+print(f"QR Code URI: {uri}")
+
+code = generate_code(key)
+print(f"Current Code: {code}")
+
+# Verify the code
+user_input = input("Enter code from authenticator app: ")
+if verify_code(key, user_input):
+    print("✓ Code verified!")
+else:
+    print("✗ Invalid code")
+```
+
+```python Flask Integration
+from flask import Flask, render_template, request, redirect, url_for, session
+import pyotp
+import pyqrcode
+import base64
+from io import BytesIO
+
+app = Flask(__name__)
+app.secret_key = 'your-secret-key-here'
+
+@app.route('/enable-2fa', methods=['GET', 'POST'])
+def enable_2fa():
+    username = session.get('username')
+    
+    if request.method == 'GET':
+        # Generate secret key for user
+        user_secret = pyotp.random_base32()
+        session['temp_2fa_secret'] = user_secret
+        
+        # Generate TOTP and QR code
+        totp = pyotp.TOTP(user_secret)
+        otp_uri = totp.provisioning_uri(
+            name=username,
+            issuer_name="Normo Unsecure PWA"
+        )
+        
+        # Create QR code image
+        qr_code = pyqrcode.create(otp_uri)
+        stream = BytesIO()
+        qr_code.png(stream, scale=5)
+        qr_code_b64 = base64.b64encode(stream.getvalue()).decode('utf-8')
+        
+        return render_template('enable_2fa.html', 
+            qr_code=qr_code_b64,
+            username=username
+        )
+    
+    elif request.method == 'POST':
+        # Verify the code entered by user
+        otp_input = request.form['otp']
+        user_secret = session.get('temp_2fa_secret')
+        
+        totp = pyotp.TOTP(user_secret)
+        if totp.verify(otp_input):
+            # Save secret to database
+            # db.save_2fa_secret(username, user_secret)
+            session.pop('temp_2fa_secret', None)
+            return redirect(url_for('success'))
+        else:
+            return render_template('enable_2fa.html', 
+                error="Invalid code. Please try again."
+            )
+
+@app.route('/login-2fa', methods=['POST'])
+def login_2fa():
+    """Verify 2FA code during login"""
+    username = request.form['username']
+    otp_input = request.form['otp']
+    
+    # Retrieve user's secret from database
+    # user_secret = db.get_2fa_secret(username)
+    user_secret = session.get('2fa_secret')  # Example
+    
+    totp = pyotp.TOTP(user_secret)
+    if totp.verify(otp_input):
+        session['logged_in'] = True
+        session['username'] = username
+        return redirect(url_for('success'))
+    else:
+        return render_template('index.html', 
+            error="Invalid 2FA code"
+        )
+```
+</CodeGroup>
+
+#### HTML Template for 2FA Setup
+
+```html templates/enable_2fa.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enable 2FA</title>
+    <style>
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        .qr-code {
+            margin: 20px 0;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Enable Two-Factor Authentication</h1>
+        <p>Scan this QR code with Google Authenticator</p>
+        
+        <div class="qr-code">
+            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
+        </div>
+        
+        <p>Then enter the 6-digit code from your app:</p>
+        
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+        
+        <form method="POST">
+            <input type="text" 
+                   name="otp" 
+                   placeholder="000000" 
+                   maxlength="6" 
+                   pattern="[0-9]{6}"
+                   required>
+            <br><br>
+            <button type="submit">Enable 2FA</button>
+        </form>
+    </div>
+</body>
+</html>
+```
+
+### Option 2: Email Verification
+
+Send a verification code to the user's registered email address.
+
+#### Using Twilio SendGrid
+
+```bash
+pip install twilio python-dotenv
+```
+
+```python .env
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_VERIFY_SERVICE=your_verify_service_sid
+```
+
+<CodeGroup>
+```python Email Verification Setup
+import os
+from dotenv import load_dotenv
+from flask import Flask, request, render_template, redirect, session, url_for
+from twilio.rest import Client
+
+load_dotenv()
+app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY')
+
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
+TWILIO_VERIFY_SERVICE = os.environ.get('TWILIO_VERIFY_SERVICE')
+
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        # First, verify username/password
+        username = request.form['username']
+        password = request.form['password']
+        
+        # Assume login is successful
+        # Get user's email from database
+        to_email = "user@example.com"  # From database
+        
+        session['username'] = username
+        session['to_email'] = to_email
+        
+        # Send verification code
+        send_verification(to_email)
+        
+        return redirect(url_for('verify_page'))
+    
+    return render_template('index.html')
+
+def send_verification(to_email):
+    """Send verification code via email"""
+    verification = client.verify \
+        .services(TWILIO_VERIFY_SERVICE) \
+        .verifications \
+        .create(to=to_email, channel='email')
+    print(f"Verification sent: {verification.sid}")
+
+@app.route("/verify", methods=['GET', 'POST'])
+def verify_page():
+    to_email = session.get('to_email')
+    error = None
+    
+    if request.method == 'POST':
+        verification_code = request.form['verificationcode']
+        
+        if check_verification_token(to_email, verification_code):
+            session['logged_in'] = True
+            return render_template('success.html', 
+                email=to_email
+            )
+        else:
+            error = "Invalid verification code. Please try again."
+            return render_template('verify.html', error=error)
+    
+    return render_template('verify.html', email=to_email)
+
+def check_verification_token(email, token):
+    """Verify the code entered by user"""
+    check = client.verify \
+        .services(TWILIO_VERIFY_SERVICE) \
+        .verification_checks \
+        .create(to=email, code=token)
+    return check.status == 'approved'
+```
+
+```html templates/verify.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify Email</title>
+    <style>
+        .container {
+            max-width: 400px;
+            margin: 50px auto;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Email Verification</h1>
+        <p>We've sent a verification code to:</p>
+        <p><strong>{{ email }}</strong></p>
+        
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+        
+        <form method="POST">
+            <input type="text" 
+                   name="verificationcode" 
+                   placeholder="Enter code"
+                   maxlength="6"
+                   required>
+            <br><br>
+            <button type="submit">Verify</button>
+        </form>
+    </div>
+</body>
+</html>
+```
+</CodeGroup>
+
+### Option 3: SMS Verification
+
+Similar to email verification, but sends codes via SMS.
+
+```python
+def send_sms_verification(phone_number):
+    """Send verification code via SMS"""
+    verification = client.verify \
+        .services(TWILIO_VERIFY_SERVICE) \
+        .verifications \
+        .create(to=phone_number, channel='sms')
+    return verification.sid
+
+def verify_sms_code(phone_number, code):
+    """Verify SMS code"""
+    check = client.verify \
+        .services(TWILIO_VERIFY_SERVICE) \
+        .verification_checks \
+        .create(to=phone_number, code=code)
+    return check.status == 'approved'
+```
+
+## Complete 2FA Integration for Normo App
+
+Here's how to add 2FA to the existing vulnerable app:
+
+<Steps>
+  <Step title="Update Database Schema">
+    Add a column to store 2FA secrets:
+    
+    ```sql
+    ALTER TABLE users ADD COLUMN totp_secret TEXT;
+    ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN DEFAULT 0;
+    ```
+  </Step>
+  
+  <Step title="Modify Login Flow">
+    Update `main.py` to check for 2FA:
+    
+    ```python main.py
+    from flask import Flask, render_template, request, redirect, session
+    import user_management as dbHandler
+    import pyotp
+    
+    app = Flask(__name__)
+    app.secret_key = 'your-secret-key-change-this'
+    
+    @app.route("/", methods=["POST", "GET"])
+    def login():
+        if request.method == "POST":
+            username = request.form["username"]
+            password = request.form["password"]
+            
+            # Step 1: Verify username and password
+            user = dbHandler.retrieveUser(username, password)
+            
+            if user:
+                # Check if 2FA is enabled
+                if user['two_factor_enabled']:
+                    session['temp_username'] = username
+                    return redirect('/verify-2fa')
+                else:
+                    # Login without 2FA
+                    session['username'] = username
+                    session['logged_in'] = True
+                    return render_template("/success.html", value=username)
+            else:
+                return render_template("/index.html", 
+                    error="Invalid credentials")
+        
+        return render_template("/index.html")
+    
+    @app.route("/verify-2fa", methods=["GET", "POST"])
+    def verify_2fa():
+        if request.method == "POST":
+            otp_input = request.form['otp']
+            username = session.get('temp_username')
+            
+            # Get user's TOTP secret from database
+            user_secret = dbHandler.get_totp_secret(username)
+            
+            totp = pyotp.TOTP(user_secret)
+            if totp.verify(otp_input):
+                # 2FA successful
+                session['username'] = username
+                session['logged_in'] = True
+                session.pop('temp_username', None)
+                return redirect('/success.html')
+            else:
+                return render_template('verify_2fa.html', 
+                    error="Invalid 2FA code")
+        
+        return render_template('verify_2fa.html')
+    ```
+  </Step>
+  
+  <Step title="Add 2FA Setup Page">
+    Create a route for users to enable 2FA:
+    
+    ```python
+    @app.route('/settings/enable-2fa', methods=['GET', 'POST'])
+    def enable_2fa():
+        if not session.get('logged_in'):
+            return redirect('/')
+        
+        username = session.get('username')
+        
+        if request.method == 'GET':
+            # Generate new secret
+            user_secret = pyotp.random_base32()
+            session['temp_2fa_secret'] = user_secret
+            
+            # Generate QR code
+            totp = pyotp.TOTP(user_secret)
+            uri = totp.provisioning_uri(
+                name=username,
+                issuer_name="Normo Unsecure PWA"
+            )
+            
+            qr_code = pyqrcode.create(uri)
+            stream = BytesIO()
+            qr_code.png(stream, scale=5)
+            qr_code_b64 = base64.b64encode(stream.getvalue()).decode('utf-8')
+            
+            return render_template('enable_2fa.html', 
+                qr_code=qr_code_b64
+            )
+        
+        elif request.method == 'POST':
+            otp_input = request.form['otp']
+            user_secret = session.get('temp_2fa_secret')
+            
+            totp = pyotp.TOTP(user_secret)
+            if totp.verify(otp_input):
+                # Save to database
+                dbHandler.enable_2fa(username, user_secret)
+                session.pop('temp_2fa_secret', None)
+                return redirect('/success.html')
+            else:
+                return render_template('enable_2fa.html', 
+                    error="Invalid code")
+    ```
+  </Step>
+  
+  <Step title="Update Database Functions">
+    Add functions to `user_management.py`:
+    
+    ```python user_management.py
+    def enable_2fa(username, totp_secret):
+        """Enable 2FA for user"""
+        con = sql.connect("database_files/database.db")
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE users SET totp_secret = ?, two_factor_enabled = 1 WHERE username = ?",
+            (totp_secret, username)
+        )
+        con.commit()
+        con.close()
+    
+    def get_totp_secret(username):
+        """Get user's TOTP secret"""
+        con = sql.connect("database_files/database.db")
+        cur = con.cursor()
+        cur.execute(
+            "SELECT totp_secret FROM users WHERE username = ?",
+            (username,)
+        )
+        result = cur.fetchone()
+        con.close()
+        return result[0] if result else None
+    
+    def retrieveUser(username, password):
+        """Get user with 2FA status"""
+        con = sql.connect("database_files/database.db")
+        cur = con.cursor()
+        cur.execute(
+            "SELECT username, two_factor_enabled, totp_secret FROM users WHERE username = ? AND password = ?",
+            (username, password)
+        )
+        result = cur.fetchone()
+        con.close()
+        
+        if result:
+            return {
+                'username': result[0],
+                'two_factor_enabled': bool(result[1]),
+                'totp_secret': result[2]
+            }
+        return None
+    ```
+  </Step>
+</Steps>
+
+## Security Best Practices
+
+<Warning>
+**Important Security Considerations:**
+
+- **Store secrets securely**: Encrypt TOTP secrets in the database
+- **Use HTTPS**: Always transmit 2FA codes over encrypted connections
+- **Implement rate limiting**: Prevent brute-force attacks on 2FA codes
+- **Provide backup codes**: Give users recovery codes in case they lose access
+- **Allow 2FA reset**: Provide a secure process for users to disable/reset 2FA
+</Warning>
+
+### Rate Limiting Example
+
+```python
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
+
+@app.route("/verify-2fa", methods=["POST"])
+@limiter.limit("5 per minute")  # Only 5 attempts per minute
+def verify_2fa():
+    # ... verification logic
+    pass
+```
+
+### Backup Codes
+
+Generate backup codes when enabling 2FA:
+
+```python
+import secrets
+
+def generate_backup_codes(count=10):
+    """Generate backup recovery codes"""
+    codes = []
+    for _ in range(count):
+        code = '-'.join([''.join([str(secrets.randbelow(10)) for _ in range(4)]) 
+                        for _ in range(3)])
+        codes.append(code)
+    return codes
+
+# Example: ['1234-5678-9012', '3456-7890-1234', ...]
+```
+
+## Testing 2FA Implementation
+
+<CodeGroup>
+```python Unit Test
+import unittest
+import pyotp
+
+class Test2FA(unittest.TestCase):
+    def test_totp_generation(self):
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+        
+        # Code should be 6 digits
+        self.assertEqual(len(code), 6)
+        self.assertTrue(code.isdigit())
+    
+    def test_totp_verification(self):
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+        
+        # Valid code should verify
+        self.assertTrue(totp.verify(code))
+        
+        # Invalid code should fail
+        self.assertFalse(totp.verify('000000'))
+    
+    def test_time_window(self):
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        
+        # Code should remain valid for ~30 seconds
+        code = totp.now()
+        time.sleep(1)
+        self.assertTrue(totp.verify(code))
+```
+
+```bash Manual Testing
+# 1. Install Google Authenticator on your phone
+# 2. Run the Flask app
+# 3. Navigate to /settings/enable-2fa
+# 4. Scan the QR code with Google Authenticator
+# 5. Enter the 6-digit code from the app
+# 6. Verify 2FA is enabled
+# 7. Log out and log back in
+# 8. Confirm 2FA code is required
+```
+</CodeGroup>
+
+## User Experience Considerations
+
+<Steps>
+  <Step title="Make 2FA optional initially">
+    Allow users to enable 2FA voluntarily before making it mandatory
+  </Step>
+  <Step title="Provide clear instructions">
+    Include screenshots and step-by-step guides for setup
+  </Step>
+  <Step title="Support multiple 2FA methods">
+    Offer TOTP, SMS, and email options to accommodate different users
+  </Step>
+  <Step title="Remember trusted devices">
+    Allow users to skip 2FA on trusted devices for convenience
+  </Step>
+  <Step title="Offer backup codes">
+    Provide recovery codes during setup and allow users to regenerate them
+  </Step>
+</Steps>
+
+## Common Issues and Solutions
+
+### Time Synchronization Issues
+
+**Problem**: TOTP codes don't work due to time drift
+
+**Solution**:
+```python
+# Allow for time drift (±1 time window = ±30 seconds)
+totp = pyotp.TOTP(secret)
+if totp.verify(code, valid_window=1):
+    # Code is valid within ±30 seconds
+    pass
+```
+
+### Lost Device
+
+**Problem**: User loses access to their authenticator app
+
+**Solution**: Implement backup codes and account recovery:
+```python
+@app.route('/2fa/recover', methods=['GET', 'POST'])
+def recover_2fa():
+    if request.method == 'POST':
+        username = request.form['username']
+        backup_code = request.form['backup_code']
+        
+        if dbHandler.verify_backup_code(username, backup_code):
+            # Allow user to disable 2FA or set up new device
+            dbHandler.mark_backup_code_used(username, backup_code)
+            session['recovery_mode'] = True
+            return redirect('/settings/2fa-reset')
+```
+
+## Additional Resources
+
+- [pyotp Documentation](https://pypi.org/project/pyotp/)
+- [Google Authenticator](https://support.google.com/accounts/answer/1066447)
+- [Twilio Verify API](https://www.twilio.com/docs/verify/api)
+- [OWASP Multi-Factor Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html)
+- [NIST Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)

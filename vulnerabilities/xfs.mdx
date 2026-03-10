@@ -1,0 +1,153 @@
+---
+title: 'Cross-Frame Scripting (XFS)'
+description: 'Learn how XFS attacks exploit iframes to steal user credentials and how to prevent them'
+icon: 'frame'
+---
+
+## Overview
+
+Cross-Frame Scripting (XFS), also known as Clickjacking, is an attack that combines malicious JavaScript with an iframe that loads a legitimate page in an effort to steal data from an unsuspecting user. This attack is usually only successful when combined with social engineering.
+
+<Warning>
+XFS attacks are particularly effective on mobile devices where browsers hide most of the URL, making spoofing pages easier to create with just HTML and inline JavaScript. When coupled with SMS phishing, these become some of the most successful attack vectors.
+</Warning>
+
+## How the Attack Works
+
+An attacker convinces a user to navigate to a web page the attacker controls. The attacker's page then loads malicious JavaScript and an HTML iframe pointing to a legitimate site. Once the user enters credentials into the legitimate site within the iframe, the malicious JavaScript steals the keystrokes.
+
+### Basic Attack Example
+
+Here's a simple demonstration of how easy it is to spoof a website using an iframe:
+
+<CodeGroup>
+```html Malicious Page Structure
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Unsecure PWA</title>
+  </head>
+  <body>
+    <style>
+      iframe {
+        border: 0px;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+    <iframe src="http://127.0.0.1:5000" id="myFrame"></iframe>
+    <script>
+      setTimeout(intercept, 10000);
+      function intercept() {
+        let iframe = document.getElementById("myFrame");
+        try {
+          let theirUsername =
+            iframe.contentWindow.document.getElementById("username").value;
+          console.log("Intercepted username: " + theirUsername);
+        } catch (error) {
+          console.log(
+            "Cross-frame access blocked by browser security: " + error.message
+          );
+        }
+        setTimeout(intercept, 10000);
+      }
+    </script>
+  </body>
+</html>
+```
+
+```javascript Data Interception Script
+setTimeout(intercept, 10000);
+function intercept() {
+    let iframe = document.getElementById("myFrame");
+    let theirUsername = iframe.contentWindow.document.getElementById('username').value;
+    console.log(theirUsername);
+    setTimeout(intercept, 10000);
+}
+```
+</CodeGroup>
+
+This attack reads form data from the iframe and posts it to a threat actor every 10 seconds.
+
+## Penetration Testing
+
+<Steps>
+  <Step title="Create Attack Page">
+    Create a simple webpage that loads the target website in an `<iframe>`.
+  </Step>
+  
+  <Step title="Test Embedding">
+    If the page loads successfully in the iframe, the vulnerability can likely be exploited.
+  </Step>
+  
+  <Step title="Implement Data Theft">
+    Write a script to read form data in the iframe and transmit it to an attacker-controlled server every 10 seconds.
+  </Step>
+</Steps>
+
+## Sophisticated Attack Variations
+
+<Accordion title="Advanced Techniques">
+Threat actors can enhance this attack by:
+
+1. **Proxy-Based Attacks**: Serve both sites through a proxy to circumvent any CORS Content Security Policy (CSP)
+2. **Back-to-Base Scripts**: Intercept and transmit input data (username, password, credit card, etc.) without the user knowing
+3. **Real-Time Interaction**: Have a threat actor listening for inputs and interacting/handling the victim, which is how 2FA is often bypassed
+</Accordion>
+
+## Countermeasures
+
+### Technical Protections
+
+<CodeGroup>
+```html X-Frame-Options Header
+<!-- Prevent the page from being loaded in an iframe -->
+<meta http-equiv="X-Frame-Options" content="DENY">
+```
+
+```python Content Security Policy (Flask)
+from flask import Flask, make_response
+
+app = Flask(__name__)
+
+@app.after_request
+def set_csp(response):
+    response.headers['Content-Security-Policy'] = "frame-ancestors 'none'"
+    response.headers['X-Frame-Options'] = 'DENY'
+    return response
+```
+
+```javascript Content Security Policy (Express)
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "frame-ancestors 'none'");
+  res.setHeader("X-Frame-Options", "DENY");
+  next();
+});
+```
+</CodeGroup>
+
+### Defense Strategy
+
+1. **End User Education**: Train users to recognize phishing attempts and suspicious URLs
+2. **Server Monitoring**: Monitor server logs for unusually repetitive GET calls
+3. **Content Security Policy**: Implement a CSP that blocks `<iframe>` loading with `frame-ancestors 'none'`
+4. **X-Frame-Options Header**: Set to `DENY` or `SAMEORIGIN` to prevent embedding
+
+<Warning>
+Always implement multiple layers of defense. Header-based protections can sometimes be bypassed, so combine them with user education and monitoring.
+</Warning>
+
+## Related Vulnerabilities
+
+- Content Security Policy (CSP) bypass
+- Cross-Site Request Forgery (CSRF)
+- Two-Factor Authentication (2FA) bypass
+- Social engineering attacks
+
+## References
+
+- [OWASP Clickjacking Defense Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html)
+- [MDN: X-Frame-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options)
+- [CSP frame-ancestors](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/frame-ancestors)

@@ -1,0 +1,157 @@
+---
+title: 'Sandbox Environment Overview'
+description: 'Understanding the critical importance of sandboxing for secure testing of the Normo Unsecure PWA'
+---
+
+<Warning>
+**This PWA is intentionally vulnerable.** Never deploy or test this application outside of a properly isolated sandbox environment. Failure to use appropriate sandboxing can expose your system, network, and data to serious security risks.
+</Warning>
+
+## What is Sandboxing?
+
+Sandboxing creates a safe place to install or execute a program, particularly a suspicious one, without exposing the rest of your system or network. It keeps the code contained in a test environment, so it can't change the state of the host machine, operating system or networked resources.
+
+## Why Sandboxing is Critical
+
+The Normo Unsecure PWA has been **specifically designed with a range of security vulnerabilities** for educational purposes in the [NESA HSC Software Engineering Course](https://curriculum.nsw.edu.au/learning-areas/tas/software-engineering-11-12-2022/content/n12/fa039e749d). This application:
+
+<CardGroup cols={2}>
+  <Card title="Contains Known Vulnerabilities" icon="shield-xmark">
+    The app includes intentional security flaws including XSS, SQL injection, CSRF, and broken authentication mechanisms.
+  </Card>
+  <Card title="Requires Isolation" icon="box">
+    Running this app in a production environment or on your main system could expose sensitive data or allow unauthorized access.
+  </Card>
+  <Card title="Used for Security Testing" icon="magnifying-glass">
+    Students perform SAST, DAST, and penetration testing to discover and document vulnerabilities.
+  </Card>
+  <Card title="Educational Purpose Only" icon="graduation-cap">
+    Designed for students to learn security by design principles and vulnerability remediation strategies.
+  </Card>
+</CardGroup>
+
+## Protection Layers
+
+A proper sandbox environment provides multiple layers of protection:
+
+### Network Isolation
+
+- Prevents the vulnerable application from accessing your local network
+- Blocks unauthorized outbound connections that could leak data
+- Isolates testing traffic from production systems
+
+### System Containment
+
+- Restricts file system access to prevent malware or exploits from affecting your host machine
+- Contains any malicious code execution within the sandbox boundaries
+- Prevents privilege escalation attacks
+
+### Resource Limitations
+
+- Controls CPU, memory, and storage allocation
+- Prevents resource exhaustion attacks from impacting your system
+- Allows safe testing of DoS vulnerabilities
+
+## Testing in Sandboxes
+
+Sandbox environments enable you to safely perform various security testing approaches:
+
+<Accordion title="Static Application Security Testing (SAST)">
+  SAST analyzes source code to find security vulnerabilities before the code is compiled. It's an automated approach to white-box testing.
+
+  **Advantages:**
+  - Reduction in manual effort
+  - Time efficient
+  - Can be performed at early stages of the SDLC
+  - Offers 100% code coverage
+  - Provides elaborate reports
+
+  **In a sandbox:** SAST tools can scan the codebase without risk, identifying vulnerabilities like hardcoded credentials, insecure cryptographic implementations, and injection flaws.
+</Accordion>
+
+<Accordion title="Dynamic Application Security Testing (DAST)">
+  DAST examines an application while it's running with no knowledge of internal interactions or designs. It's an automated approach to black-box testing.
+
+  **Advantages:**
+  - Produces virtually no false positives
+  - Can discover runtime issues
+  - Can discover issues based on user interaction
+  - Does not require access to source code
+
+  **In a sandbox:** DAST tools can safely probe the running application, testing for vulnerabilities like XSS, SQL injection, and broken authentication without risking production systems.
+</Accordion>
+
+<Accordion title="Penetration Testing">
+  Penetration testing is a security exercise where an expert attempts to find and exploit vulnerabilities. It can be white-box (full knowledge), grey-box (partial knowledge), or black-box (no knowledge).
+
+  <Warning>
+  **Legal Notice:** Students MUST only perform penetration tests on their own applications or peers' applications with expressed permission. Unauthorized penetration testing is illegal.
+  </Warning>
+
+  **In a sandbox:** Pen testing can safely use brute force attacks, exploit known vulnerabilities, and attempt privilege escalation without legal or ethical concerns.
+</Accordion>
+
+## Available Sandbox Options
+
+Multiple sandbox environments are available for testing the Normo Unsecure PWA:
+
+<CardGroup cols={2}>
+  <Card title="Secure Architecture Sandbox" icon="layer-group" href="/sandbox/setup#secure-architecture-sandbox">
+    Recommended multi-layer isolation with automated SAST, DAST, network, and penetration testing reports.
+  </Card>
+  <Card title="GitHub Codespaces" icon="github" href="/sandbox/setup#github-codespaces">
+    Cloud-based development environment with built-in isolation and container support.
+  </Card>
+  <Card title="CodeSandbox.io" icon="cloud" href="/sandbox/setup#codesandbox">
+    Browser-based development environment for quick testing without local installation.
+  </Card>
+  <Card title="Docker Containers" icon="docker" href="/sandbox/setup#docker-containers">
+    Lightweight containerization for consistent, isolated environments.
+  </Card>
+  <Card title="Virtual Machines" icon="server" href="/sandbox/setup#virtual-machines">
+    Full OS virtualization with complete isolation from the host system.
+  </Card>
+  <Card title="Ubuntu USB/Qubes OS" icon="usb-drive" href="/sandbox/setup#specialized-options">
+    Hardware-isolated or security-focused operating systems for advanced isolation.
+  </Card>
+</CardGroup>
+
+## Security Testing Workflow
+
+<Steps>
+  <Step title="Set Up Sandbox">
+    Choose and configure an appropriate sandbox environment based on your testing needs and available resources.
+  </Step>
+  <Step title="Deploy Application">
+    Clone the repository and deploy the Normo Unsecure PWA within your sandbox environment.
+  </Step>
+  <Step title="Run Security Scans">
+    Execute SAST and DAST tools to automatically identify common vulnerabilities in the application.
+  </Step>
+  <Step title="Perform Manual Testing">
+    Conduct code reviews, penetration testing, and vulnerability assessments to discover additional flaws.
+  </Step>
+  <Step title="Document Findings">
+    Create a comprehensive report documenting all discovered vulnerabilities with impact assessments.
+  </Step>
+  <Step title="Develop Patches">
+    Implement security fixes using HTML/CSS/JS/SQL/JSON/Python code to remediate identified vulnerabilities.
+  </Step>
+</Steps>
+
+## Browser Security
+
+<Info>
+The UI should be accessed from the **latest version** of a secure browser such as Chromium or Microsoft Edge. Keep your browser updated to ensure proper testing of modern security features.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup Guide" icon="wrench" href="/sandbox/setup">
+    Follow step-by-step instructions to configure your preferred sandbox environment.
+  </Card>
+  <Card title="Best Practices" icon="list-check" href="/sandbox/best-practices">
+    Learn essential safety guidelines and testing methodologies for secure vulnerability research.
+  </Card>
+</CardGroup>

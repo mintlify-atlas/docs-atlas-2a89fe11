@@ -1,0 +1,257 @@
+---
+title: 'Privacy & Compliance'
+description: 'Privacy regulations, compliance requirements, and data protection guidelines for Australian software applications'
+icon: 'shield-check'
+---
+
+## Overview
+
+Privacy and compliance are critical considerations in software engineering, particularly when handling user data. This guide focuses on Australian privacy regulations and best practices for creating applications that respect user privacy and comply with data protection requirements.
+
+<Info>
+  Software engineers must consider privacy at every phase of the Software Development Life Cycle (SDLC) to ensure privacy is an integral part of the development process.
+</Info>
+
+## Australian Privacy Framework
+
+### Australian Government Privacy Principles
+
+The Australian Government has established comprehensive privacy principles that all applications handling personal information must follow.
+
+<Card title="Australian Government Privacy" icon="landmark" href="https://www.ag.gov.au/rights-and-protections/privacy">
+  Official resource for Australian privacy laws, principles, and requirements
+</Card>
+
+<Accordion title="Key Privacy Obligations">
+  Applications developed and deployed in Australia must:
+  - Only collect personal information that is necessary for their function
+  - Inform users about what data is being collected and why
+  - Secure personal information against misuse, interference, and loss
+  - Provide users with access to their personal information
+  - Allow users to correct inaccurate information
+  - Allow users to delete their data upon request
+  - Not use or disclose personal information for purposes other than those for which it was collected
+</Accordion>
+
+## Privacy by Design
+
+<CardGroup cols={2}>
+  <Card title="Proactive Design" icon="shield">
+    Build privacy protections into the application from the requirements phase, not as an afterthought.
+  </Card>
+  
+  <Card title="Default Settings" icon="lock">
+    Ensure the most privacy-protective settings are the default, requiring no user action.
+  </Card>
+  
+  <Card title="Data Minimization" icon="filter">
+    Only collect and retain the minimum amount of personal data necessary for functionality.
+  </Card>
+  
+  <Card title="User Control" icon="user-gear">
+    Give users visibility and control over their personal information throughout its lifecycle.
+  </Card>
+</CardGroup>
+
+## Code Review Privacy Checklist
+
+When reviewing code for privacy compliance, consider these critical questions:
+
+<Accordion title="Data Collection & Storage">
+  <ResponseField name="Necessary Data Only" required>
+    Is sensitive data stored that is not required for the application?
+  </ResponseField>
+  
+  <ResponseField name="Error Logging" required>
+    Is sensitive data included in error logs?
+  </ResponseField>
+  
+  <ResponseField name="Password Encryption" required>
+    Are passwords encrypted before storage or use?
+  </ResponseField>
+  
+  <Info>
+  Best practice: Use salt and hash algorithms for password encryption, never store passwords in plain text.
+  </Info>
+</Accordion>
+
+<Accordion title="User Rights & Access">
+  <ResponseField name="Data Download" required>
+    Can users download their data in a portable format?
+  </ResponseField>
+  
+  <ResponseField name="Data Deletion" required>
+    Can users delete their data from the system?
+  </ResponseField>
+  
+  <ResponseField name="Privacy Policy Access" required>
+    Are users provided clear access to the privacy policy?
+  </ResponseField>
+  
+  <ResponseField name="Log File Access" required>
+    Are log files containing personal information protected from unauthorized access?
+  </ResponseField>
+</Accordion>
+
+## Data Privacy Compliance Implementation
+
+<Card title="Create Apps That Comply with Data Privacy Regulations" icon="clipboard-check" href="https://moldstud.com/articles/p-how-to-create-an-app-that-complies-with-data-privacy-regulations">
+  Comprehensive guide to implementing privacy compliance in application development
+</Card>
+
+### Essential Privacy Features
+
+<Accordion title="Privacy Policy">
+  Every application must have a clear, accessible privacy policy that includes:
+  - What data is collected
+  - Why the data is collected
+  - How the data is used
+  - How long the data is retained
+  - Who has access to the data
+  - User rights regarding their data
+  - Contact information for privacy concerns
+  
+  <Info>
+  The privacy policy must be written in plain language that users can understand, not just legal terminology.
+  </Info>
+</Accordion>
+
+<Accordion title="Consent Management">
+  Applications should implement proper consent mechanisms:
+  - Explicit opt-in for data collection (not pre-checked boxes)
+  - Clear explanation of what users are consenting to
+  - Ability to withdraw consent at any time
+  - Separate consent for different types of data processing
+  - Record keeping of consent decisions
+</Accordion>
+
+<Accordion title="Data Subject Rights">
+  Implement functionality for users to exercise their rights:
+  
+  **Right to Access**: Users can view all data held about them
+  
+  **Right to Rectification**: Users can correct inaccurate information
+  
+  **Right to Erasure**: Users can request deletion of their data
+  
+  **Right to Data Portability**: Users can export their data in a machine-readable format
+  
+  **Right to Object**: Users can object to certain types of processing
+</Accordion>
+
+## Privacy in the SDLC
+
+### Requirements Definition Phase
+- Gather specific privacy requirements
+- Identify what personal data is truly necessary
+- Conduct privacy impact assessment
+- Define data retention policies
+
+### Design Phase
+- Privacy design review
+- Threat modeling for privacy risks
+- Design data minimization strategies
+- Plan for user consent flows
+
+### Development Phase
+- Code reviews focusing on privacy
+- Implement encryption for sensitive data
+- Apply data sanitization techniques
+- Use secure coding practices
+
+### Testing Phase
+- Test privacy controls and user rights features
+- Verify data deletion actually removes data
+- Test consent management workflows
+- Validate encryption implementation
+
+### Maintenance Phase
+- Regular privacy audits
+- Log monitoring for unauthorized access
+- Update privacy policies as features change
+- Respond to data subject access requests
+
+## Common Privacy Vulnerabilities
+
+<CardGroup cols={2}>
+  <Card title="Excessive Data Collection" icon="database">
+    Collecting more personal information than necessary for the application's functionality
+  </Card>
+  
+  <Card title="Insecure Storage" icon="unlock">
+    Storing sensitive data without proper encryption or access controls
+  </Card>
+  
+  <Card title="Data Leakage" icon="leak">
+    Exposing personal information through logs, error messages, or API responses
+  </Card>
+  
+  <Card title="Lack of User Control" icon="user-slash">
+    Not providing users with access, correction, or deletion capabilities
+  </Card>
+</CardGroup>
+
+## Privacy Best Practices
+
+<Accordion title="Encryption & Security">
+  - Encrypt passwords using salt and hash algorithms before storage
+  - Use HTTPS/TLS for all data transmission
+  - Encrypt sensitive data at rest
+  - Implement proper key management
+  - Never log passwords or sensitive authentication data
+</Accordion>
+
+<Accordion title="Data Handling">
+  - Validate and sanitize all user input
+  - Use parameterized queries to prevent SQL injection
+  - Implement proper exception handling that doesn't expose sensitive data
+  - Apply the principle of least privilege for data access
+  - Regularly purge unnecessary data
+</Accordion>
+
+<Accordion title="User Communication">
+  - Provide clear, conspicuous privacy notices
+  - Use plain language in privacy policies
+  - Notify users of data breaches promptly
+  - Offer transparency about data practices
+  - Maintain open channels for privacy concerns
+</Accordion>
+
+## Compliance Resources
+
+<CardGroup cols={2}>
+  <Card title="Australian Government Privacy" icon="landmark" href="https://www.ag.gov.au/rights-and-protections/privacy">
+    Official Australian privacy principles and regulations
+  </Card>
+  
+  <Card title="Privacy Compliance Guide" icon="book" href="https://moldstud.com/articles/p-how-to-create-an-app-that-complies-with-data-privacy-regulations">
+    Practical implementation guidance for privacy compliance
+  </Card>
+  
+  <Card title="Cyber Security Guidelines" icon="shield-halved" href="https://www.cyber.gov.au/resources-business-and-government/essential-cyber-security/ism/cyber-security-guidelines/guidelines-cyber-security-incidents">
+    Australian Government cyber security incident response guidelines
+  </Card>
+  
+  <Card title="OWASP Privacy Project" icon="eye-slash" href="https://owasp.org/www-project-web-security-testing-guide/v42/">
+    Web security testing guide including privacy considerations
+  </Card>
+</CardGroup>
+
+<Info>
+  Privacy compliance is not just a legal requirement—it's a fundamental aspect of building trustworthy software that respects users' rights and protects their personal information.
+</Info>
+
+## Privacy Checklist for Normo Unsecure PWA Analysis
+
+When analyzing the Normo Unsecure PWA for privacy issues, check for:
+
+- [ ] Unnecessary collection of personal data
+- [ ] Unencrypted password storage
+- [ ] Sensitive data in error logs
+- [ ] Missing privacy policy
+- [ ] No user data download capability
+- [ ] No user data deletion capability
+- [ ] Excessive log file access permissions
+- [ ] Lack of consent mechanisms
+- [ ] Missing data retention policies
+- [ ] Inadequate access controls on personal data

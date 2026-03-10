@@ -1,0 +1,440 @@
+---
+title: 'Defensive Data Handling'
+description: 'Learn how to implement input validation, sanitization, exception handling, and logging to protect against malicious data'
+icon: 'shield-check'
+---
+
+## Overview
+
+Defensive data handling is a critical security practice that protects your application from malicious input. The Normo Unsecure PWA currently has **no input validation, no sanitization, and no exception handling**, making it vulnerable to various attacks.
+
+<Warning>
+**Current Vulnerabilities in the App:**
+- No input validation on user registration or login forms
+- Direct insertion of user data into database without sanitization
+- No exception handling for invalid data types
+- Missing data type checking
+- No logging of security events
+</Warning>
+
+## Vulnerable Code Examples from the App
+
+### No Input Validation
+
+The current signup function accepts any input without validation:
+
+```python main.py
+@app.route("/signup.html", methods=["POST", "GET"])
+def signup():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        DoB = request.form["dob"]
+        dbHandler.insertUser(username, password, DoB)
+        return render_template("/index.html")
+```
+
+**Problems:**
+- No password strength validation
+- No username format checking
+- No date of birth validation
+- Accepts any data type
+
+### No Data Sanitization
+
+User feedback is inserted directly without sanitization:
+
+```python user_management.py
+def insertFeedback(feedback):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    cur.execute(f"INSERT INTO feedback (feedback) VALUES ('{feedback}')")
+    con.commit()
+    con.close()
+```
+
+**Problems:**
+- Malicious strings like `"';DROP TABLE users"` can be executed
+- No HTML escaping for XSS prevention
+- SQL injection vulnerability
+
+## Input Validation
+
+Input validation checks that data meets expected criteria before processing or storing it.
+
+<Steps>
+  <Step title="Validate on entry">
+    Check data immediately when it enters your application, before storing or processing
+  </Step>
+  <Step title="Reject invalid data">
+    If data doesn't meet requirements, discard it and provide clear feedback to the user
+  </Step>
+  <Step title="Use multiple validation layers">
+    Implement validation on both frontend (form attributes) and backend (Python functions)
+  </Step>
+</Steps>
+
+### Password Validation Example
+
+<CodeGroup>
+```python Simple Boolean Check
+import re
+
+def simple_check_password(password: str) -> bool:
+    if not issubclass(type(password), str):
+        return False
+    if len(password) < 8:
+        return False
+    if len(password) > 20:
+        return False
+    if re.search(r"[ ]", password):
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[a-z]", password):
+        return False
+    if not re.search(r"[0-9]", password):
+        return False
+    if not re.search(r"[@$!%*?&]", password):
+        return False
+    return True
+```
+
+```python Pythonic with Exceptions
+import re
+
+def check_password(password: str) -> bytes:
+    if not issubclass(type(password), str):
+        raise TypeError("Expected a string")
+    if len(password) < 8:
+        raise ValueError("less than 8 characters")
+    if len(password) > 20:
+        raise ValueError("more than 20 characters")
+    if re.search(r"[ ]", password):
+        raise ValueError("contains ' ' space characters")
+    if not re.search(r"[A-Z]", password):
+        raise ValueError("does not contain uppercase letters")
+    if not re.search(r"[a-z]", password):
+        raise ValueError("does not contain lowercase letters")
+    if not re.search(r"[0-9]", password):
+        raise ValueError("does not contain a digit '0123456789'")
+    if not re.search(r"[@$!%*?&]", password):
+        raise ValueError("does not contain one of '@$!%*?&' special characters")
+    # Password returned encoded to prevent accidental logging
+    return password.encode()
+```
+</CodeGroup>
+
+### Email Validation
+
+```python data_handler.py
+import re
+
+def check_email(email: str) -> bool:
+    if re.fullmatch(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email):
+        return True
+    else:
+        return False
+```
+
+### Name and Number Validation
+
+<CodeGroup>
+```python Name Validation
+def validate_name(name: str) -> bool:
+    # Check if the name contains only alphabets
+    if not name.isalpha():
+        return False
+    return True
+```
+
+```python Number Validation
+def validate_number(number: str) -> bool:
+    # Check if the input contains only numbers
+    if number.isalpha():
+        return False
+    return True
+```
+</CodeGroup>
+
+## Data Sanitization
+
+Data sanitization cleans potentially malicious characters by replacing them with non-processing codes.
+
+<Info>
+Example: The malicious string `"';DROP TABLE users"` becomes `&#39;&#59;DROP TABLE users` when sanitized, rendering safely without executing code.
+</Info>
+
+### Sanitization Methods
+
+<CodeGroup>
+```python Using Python html Library (Recommended)
+import html
+
+def make_web_safe(string: str) -> str:
+    return html.escape(string)
+
+# Example usage
+unsafe_input = "<script>alert('XSS')</script>"
+safe_output = make_web_safe(unsafe_input)
+# Result: &lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;
+```
+
+```python Manual Character Replacement
+def replace_characters(input_string: str) -> str:
+    to_replace = ["<", ">", ";"]
+    replacements = ["%3C", "%3E", "%3B"]
+    char_list = list(input_string)
+    for i in range(len(char_list)):
+        if char_list[i] in to_replace:
+            index = to_replace.index(char_list[i])
+            char_list[i] = replacements[index]
+    return ''.join(char_list)
+```
+</CodeGroup>
+
+<Note>
+**Built-in Protection:**
+- **Jinja2** (Flask's template engine) automatically escapes strings when rendering
+- **JSON loading** occurs after JavaScript execution, preventing code injection
+- These are reactive measures - always implement proactive validation first
+</Note>
+
+## Exception Handling
+
+Exception handling prevents malicious users from exploiting your application with invalid input.
+
+<Warning>
+The current app has **zero exception handling**. Any invalid input could crash the application or reveal sensitive error information.
+</Warning>
+
+### Implementing Try-Except Blocks
+
+```python main.py
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    filename='security_log.log',
+    encoding='utf-8',
+    level=logging.DEBUG,
+    format='%(asctime)s %(message)s'
+)
+
+# Example usage with password validation
+password = request.form["password"]
+try:
+    validated_password = check_password(password)
+    # Proceed with registration
+except TypeError:
+    logger.error(f"Type error for password: {password}")
+    return render_template("/signup.html", error="Invalid password format")
+except ValueError as inst:
+    logger.warning(f"Password validation failed: {inst.args}")
+    return render_template("/signup.html", error=f"Password {inst.args[0]}")
+except Exception as inst:
+    logger.error(f"Unexpected error: {type(inst)}")
+    return render_template("/signup.html", error="An error occurred")
+```
+
+### Complete Example with Exception Handling
+
+```python
+import data_handler as sanitiser
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    filename='security_log.log',
+    encoding='utf-8',
+    level=logging.DEBUG,
+    format='%(asctime)s %(message)s'
+)
+
+if __name__ == '__main__':
+    password = 123  # Invalid type
+    try:
+        validated = sanitiser.check_password(password)
+        print(f"Password as byte string: {validated.hex()} is ready to be encrypted")
+    except TypeError:
+        logger.error(f"Type error for password: {password}")
+        print("TypeError has been logged")
+    except ValueError as inst:
+        print(f"Not a valid password because it has {inst.args}.")
+    except Exception as inst:
+        print(f"Log as a {type(inst)}")
+```
+
+## Logging
+
+Logging security events helps detect malicious behavior and improve data handling.
+
+<Steps>
+  <Step title="Log all errors and exceptions">
+    Every error, exception, or unexpected behavior should be logged
+  </Step>
+  <Step title="Include sufficient details">
+    Log entries should contain enough information to understand and address the issue
+  </Step>
+  <Step title="Review logs regularly">
+    Implement cyclical log reviews as part of your development lifecycle
+  </Step>
+</Steps>
+
+### Setting Up Logging
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    filename='security_log.log',
+    encoding='utf-8',
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s'
+)
+
+# Log different severity levels
+logger.debug("Detailed information for debugging")
+logger.info("General informational message")
+logger.warning("Warning: something unexpected")
+logger.error("Error: something failed")
+logger.critical("Critical: system is unusable")
+```
+
+<Note>
+The [Australian Signals Directorate's Australian Cyber Security Centre](https://www.cyber.gov.au/resources-business-and-government/maintaining-devices-and-systems/system-hardening-and-administration/system-monitoring/best-practices-event-logging-threat-detection) recommends logging as best practice for threat detection.
+</Note>
+
+## Fixing the Vulnerable App
+
+### Step 1: Create a Data Handler Module
+
+Create `data_handler.py` with validation functions:
+
+```python data_handler.py
+import re
+import html
+
+def check_password(password: str) -> bytes:
+    """Validate password meets security requirements"""
+    if not issubclass(type(password), str):
+        raise TypeError("Expected a string")
+    if len(password) < 8:
+        raise ValueError("less than 8 characters")
+    if len(password) > 20:
+        raise ValueError("more than 20 characters")
+    if not re.search(r"[A-Z]", password):
+        raise ValueError("does not contain uppercase letters")
+    if not re.search(r"[a-z]", password):
+        raise ValueError("does not contain lowercase letters")
+    if not re.search(r"[0-9]", password):
+        raise ValueError("does not contain a digit")
+    if not re.search(r"[@$!%*?&]", password):
+        raise ValueError("does not contain special characters")
+    return password.encode()
+
+def check_email(email: str) -> bool:
+    """Validate email format"""
+    return bool(re.fullmatch(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email))
+
+def make_web_safe(string: str) -> str:
+    """Sanitize string for web output"""
+    return html.escape(string)
+
+def validate_name(name: str) -> bool:
+    """Validate name contains only alphabets"""
+    return name.isalpha()
+```
+
+### Step 2: Update Signup Route
+
+```python main.py
+import data_handler
+import logging
+
+logger = logging.getLogger(__name__)
+
+@app.route("/signup.html", methods=["POST", "GET"])
+def signup():
+    if request.method == "POST":
+        try:
+            username = request.form["username"]
+            password = request.form["password"]
+            DoB = request.form["dob"]
+            
+            # Validate username
+            if not data_handler.validate_name(username):
+                logger.warning(f"Invalid username attempt: {username}")
+                return render_template("/signup.html", error="Username must contain only letters")
+            
+            # Validate password
+            validated_password = data_handler.check_password(password)
+            
+            # Sanitize inputs
+            safe_username = data_handler.make_web_safe(username)
+            
+            dbHandler.insertUser(safe_username, validated_password.decode(), DoB)
+            return render_template("/index.html", msg="Registration successful")
+            
+        except TypeError as e:
+            logger.error(f"Type error in signup: {e}")
+            return render_template("/signup.html", error="Invalid data format")
+        except ValueError as e:
+            logger.warning(f"Validation error: {e}")
+            return render_template("/signup.html", error=f"Password {e}")
+        except Exception as e:
+            logger.critical(f"Unexpected error in signup: {e}")
+            return render_template("/signup.html", error="An error occurred")
+    else:
+        return render_template("/signup.html")
+```
+
+### Step 3: Sanitize Feedback Input
+
+```python user_management.py
+import html
+
+def insertFeedback(feedback):
+    # Sanitize the feedback
+    safe_feedback = html.escape(feedback)
+    
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    # Use parameterized query to prevent SQL injection
+    cur.execute("INSERT INTO feedback (feedback) VALUES (?)", (safe_feedback,))
+    con.commit()
+    con.close()
+```
+
+## Best Practices Summary
+
+<Steps>
+  <Step title="Validate all input">
+    Never trust user input - validate everything before processing or storing
+  </Step>
+  <Step title="Sanitize data">
+    Use libraries like `html.escape()` to make strings web-safe
+  </Step>
+  <Step title="Handle exceptions">
+    Wrap validation in try-except blocks to catch and log errors gracefully
+  </Step>
+  <Step title="Implement logging">
+    Log all security events for monitoring and improvement
+  </Step>
+  <Step title="Use type checking">
+    Verify data types match expectations before processing
+  </Step>
+  <Step title="Provide user feedback">
+    Give clear error messages without revealing sensitive system information
+  </Step>
+</Steps>
+
+## Additional Resources
+
+- [Python Regular Expressions Documentation](https://docs.python.org/3/library/re.html)
+- [Python Regular Expressions Tutorial](https://docs.python.org/3/howto/regex.html)
+- [Python Exception Handling](https://docs.python.org/3/tutorial/errors.html)
+- [Python html Library](https://docs.python.org/3/library/html.html)
+- [Jinja2 Template Engine](https://jinja.palletsprojects.com/en/3.1.x/)
+- [ACSC Event Logging Best Practices](https://www.cyber.gov.au/resources-business-and-government/maintaining-devices-and-systems/system-hardening-and-administration/system-monitoring/best-practices-event-logging-threat-detection)

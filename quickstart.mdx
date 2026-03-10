@@ -1,80 +1,276 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get the Normo Unsecure PWA running in a sandbox environment
+icon: rocket
 ---
 
-## Get started in three steps
+<Warning>
+**CRITICAL SECURITY NOTICE**
 
-Get your documentation site running locally and make your first customization.
+This application contains intentional security vulnerabilities for educational purposes. **Never deploy this application in a production environment or on a publicly accessible server.** Always use a properly isolated sandbox environment.
+</Warning>
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+Before you begin, ensure you have the following installed:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Python 3.x" icon="python" href="https://www.python.org/downloads/">
+    Required to run the Flask application
+  </Card>
+  <Card title="Git" icon="git" href="https://git-scm.com/downloads">
+    Version 2.x or higher for cloning the repository
+  </Card>
+  <Card title="VS Code" icon="code" href="https://code.visualstudio.com/download">
+    Recommended code editor for development
+  </Card>
+  <Card title="Modern Browser" icon="browser">
+    Chromium or Edge for testing
+  </Card>
 </CardGroup>
 
+<Info>
+**MacOS Users**: You may have `pip3` instead of `pip`. Run `pip show pip` and `pip3 show pip` to check which command is configured on your system.
+</Info>
+
+## Installation
+
+<Steps>
+  <Step title="Clone the Repository">
+```bash Clone from GitHub
+git clone https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA.git
+cd Normo_Unsecure_PWA
+```
+  </Step>
+  <Step title="Install Dependencies">
+```bash Install Python packages
+pip install -r requirements.txt
+```
+
+This installs all required packages including:
+- **Flask** - Web framework
+- **Flask-CORS** - Cross-origin resource sharing (intentionally permissive)
+- **Flask-CSP** - Content Security Policy headers (not implemented in base app)
+- **Flask-WTF** - CSRF protection (not implemented in base app)
+- **Flask-Limiter** - Rate limiting (not implemented in base app)
+- **bcrypt** - Password hashing (not implemented in base app)
+- **pyotp** - Two-factor authentication (not implemented in base app)
+- **qrcode** - QR code generation for 2FA (not implemented in base app)
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+Many security libraries are included in `requirements.txt` but are **not used** in the vulnerable base application. Part of your learning is to implement these security features.
 </Note>
+  </Step>
+  <Step title="Run the Application">
+```bash Start Flask server
+python main.py
+```
+
+You should see output similar to:
+```
+ * Serving Flask app 'main'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.x:5000
+```
+  </Step>
+  <Step title="Access the Application">
+Open your browser and navigate to one of these URLs:
+
+- **Local access**: [http://localhost:5000](http://localhost:5000) or [http://127.0.0.1:5000](http://127.0.0.1:5000)
+- **Network access**: `http://{YOUR_LAN_IP}:5000` (e.g., http://192.168.1.100:5000)
+
+<Info>
+If your teacher is hosting the app, you'll access it via their LAN IP address instead of localhost.
+</Info>
+  </Step>
+</Steps>
+
+## Application Structure
+
+Once running, you'll see a simple progressive web app with the following pages:
+
+```bash Application Pages
+├── /                    # Login page (index.html)
+├── /signup.html         # User registration
+└── /success.html        # User dashboard with feedback
+```
+
+### Key Routes
+
+The Flask application (`main.py`) defines these routes:
+
+```python main.py:46-67
+@app.route("/", methods=["POST", "GET"])
+@app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+def home():
+    # Login functionality
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        isLoggedIn = dbHandler.retrieveUsers(username, password)
+        if isLoggedIn:
+            return render_template("/success.html", value=username, state=isLoggedIn)
+```
+
+<Warning>
+Notice that routes accept multiple HTTP methods (GET, POST, PUT, PATCH, DELETE) and there's no input validation. These are security vulnerabilities you'll be testing.
+</Warning>
+
+## Database Structure
+
+The application uses SQLite with two tables:
+
+<Tabs>
+  <Tab title="users table">
+```sql
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    password TEXT NOT NULL,     -- ⚠️ Plaintext storage!
+    dateOfBirth TEXT
+);
+```
+
+**Vulnerabilities:**
+    - Passwords stored in plaintext
+    - No password complexity requirements
+    - No unique constraints
+  </Tab>
+  <Tab title="feedback table">
+```sql
+CREATE TABLE feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    feedback TEXT NOT NULL
+);
+```
+
+**Vulnerabilities:**
+    - No input sanitization
+    - Feedback displayed without HTML escaping (XSS)
+  </Tab>
+</Tabs>
+
+## Testing the Application
+
+### Create a Test Account
+
+<Steps>
+  <Step title="Navigate to Signup">
+    Click the **Sign Up** link on the login page or go to `http://127.0.0.1:5000/signup.html`
+  </Step>
+  <Step title="Register a User">
+```bash Example test credentials
+Username: testuser
+Password: testpass123
+Date of Birth: 2000-01-01
+```
+<Note>
+The date of birth field is collected but never used - this is a privacy issue (unnecessary data collection).
+</Note>
+  </Step>
+  <Step title="Login">
+    Return to the login page and use your test credentials to authenticate.
+  </Step>
+  <Step title="Submit Feedback">
+    On the success/dashboard page, try submitting feedback like "This is a test message"
+  </Step>
+</Steps>
+
+### Begin Security Testing
+
+Now that the app is running, you can start testing for vulnerabilities:
+
+<CardGroup cols={2}>
+  <Card title="SQL Injection" icon="database" href="/vulnerabilities/sql-injection">
+    Try `' OR '1'='1` in the username field
+  </Card>
+  <Card title="XSS Attack" icon="code" href="/vulnerabilities/xss">
+    Submit `<script>alert('XSS')</script>` in the feedback form
+  </Card>
+  <Card title="CSRF Attack" icon="shield-xmark" href="/vulnerabilities/csrf">
+    Create a malicious form that submits to the app
+  </Card>
+  <Card title="Open Redirect" icon="arrow-up-right-from-square" href="/vulnerabilities/invalid-redirects">
+    Test `/?url=https://evil.com` in the URL
+  </Card>
+</CardGroup>
+
+## Configuration Details
+
+The app runs with these (insecure) configurations:
+
+```python main.py:70-73
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.run(debug=True, host="0.0.0.0", port=5000)
+```
+
+**Security Issues:**
+- `debug=True` - Exposes detailed error messages and interactive debugger
+- `host="0.0.0.0"` - Binds to all network interfaces (should use `127.0.0.1` for local dev)
+- No secret key configured
+- No HTTPS/SSL
+- No rate limiting
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port 5000 already in use">
+```bash Error message
+OSError: [Errno 48] Address already in use
+```
+
+**Solution:**
+    - Stop any other Flask applications running
+    - Or modify `main.py` line 73 to use a different port: `app.run(debug=True, host="0.0.0.0", port=5001)`
+  </Accordion>
+  <Accordion title="Module not found error">
+```bash Error message
+ModuleNotFoundError: No module named 'flask'
+```
+
+**Solution:**
+    - Ensure you ran `pip install -r requirements.txt`
+    - Check you're using the correct Python environment
+    - Try `pip3 install -r requirements.txt` on MacOS/Linux
+  </Accordion>
+  <Accordion title="Database errors">
+```bash Error message
+sqlite3.OperationalError: no such table: users
+```
+
+**Solution:**
+    - The database should be created automatically in `database_files/database.db`
+    - Check that the `database_files/` directory exists
+    - If needed, create the tables manually using the schema in the Architecture documentation
+  </Accordion>
+  <Accordion title="Cannot access from another computer">
+**Issue:** You're trying to access the app from another device on your network but it's not working.
+
+**Solution:**
+    - Ensure Flask is running with `host="0.0.0.0"` (default in this app)
+    - Find your local IP: `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
+    - Access via `http://{YOUR_IP}:5000`
+    - Check firewall settings allow incoming connections on port 5000
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment Guide" icon="server" href="/deployment">
+    Set up proper sandbox environments for secure testing
+  </Card>
+  <Card title="Architecture Overview" icon="sitemap" href="/architecture">
+    Understand the application structure and components
+  </Card>
+  <Card title="Testing Approaches" icon="magnifying-glass" href="/testing-approaches">
+    Learn white-box, grey-box, and black-box testing
+  </Card>
+  <Card title="Vulnerabilities" icon="bug" href="/vulnerabilities/sql-injection">
+    Start exploring specific security flaws
+  </Card>
+</CardGroup>

@@ -1,0 +1,395 @@
+---
+title: 'Exception Handling & Error Management'
+description: 'Learn proper exception handling patterns for secure Python/Flask applications including defensive data handling and comprehensive logging'
+icon: 'triangle-exclamation'
+---
+
+## Overview
+
+Exception handling is essential in defensive data handling. Malicious users may attempt to exploit applications by providing invalid input to trigger vulnerabilities. Proper exception handling prevents information disclosure, maintains application stability, and provides security insights through logging.
+
+<Warning>
+  Poor exception handling can expose sensitive information, crash applications, or create security vulnerabilities that attackers can exploit.
+</Warning>
+
+## Python Exception Handling Basics
+
+Python provides robust exception handling through `try`, `except`, `else`, and `finally` statements.
+
+### Basic Try-Except Pattern
+
+```python
+try:
+    # Code that might raise an exception
+    result = risky_operation()
+except ValueError as e:
+    # Handle specific exception
+    print(f"Invalid value: {e}")
+except Exception as e:
+    # Handle any other exception
+    print(f"Unexpected error: {e}")
+finally:
+    # Always executes, useful for cleanup
+    cleanup_resources()
+```
+
+## Defensive Password Validation
+
+### Simple Boolean Validation
+
+A basic approach that returns True/False:
+
+```python
+import re
+
+def simple_check_password(password: str) -> bool:
+    if not issubclass(type(password), str):
+        return False
+    if len(password) < 8:
+        return False
+    if len(password) > 20:
+        return False
+    if re.search(r"[ ]", password):
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[a-z]", password):
+        return False
+    if not re.search(r"[0-9]", password):
+        return False
+    if not re.search(r"[@$!%*?&]", password):
+        return False
+    return True
+```
+
+### Exception-Based Validation (Recommended)
+
+A more Pythonic approach that provides detailed error messages:
+
+```python
+import re
+import bcrypt
+
+def check_password(password: str) -> bytes:
+    if not issubclass(type(password), str):
+        raise TypeError("Expected a string")
+    if len(password) < 8:
+        raise ValueError("less than 8 characters")
+    if len(password) > 20:
+        raise ValueError("more than 10 characters")
+    if re.search(r"[ ]", password):
+        raise ValueError("contains ' ' space characters")
+    if not re.search(r"[A-Z]", password):
+        raise ValueError("does not contain uppercase letters")
+    if not re.search(r"[a-z]", password):
+        raise ValueError("does not contain lowercase letters")
+    if not re.search(r"[0-9]", password):
+        raise ValueError("does not contain a digit '0123456789'")
+    if not re.search(r"[@$!%*?&]", password):
+        raise ValueError("does not contain one of '@$!%*?&' special characters")
+    # Password is returned encoded so it can't be accidently logged in a human readable format
+    return password.encode()
+```
+
+<Note>
+  Returning the password as encoded bytes prevents accidental logging in human-readable format, adding an extra layer of security.
+</Note>
+
+## Input Validation Patterns
+
+### Email Validation
+
+```python
+import re
+
+def check_email(email: str) -> bool:
+    if re.fullmatch(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email):
+        return True
+    else:
+        return False
+```
+
+### Name Validation
+
+```python
+def validate_name(name: str) -> bool:
+    # Check if the name is valid (only alphabets allowed).
+    if not name.isalpha():
+        return False
+    return True
+```
+
+### Number Validation
+
+```python
+def validate_number(number: str) -> bool:
+    # Check if the value is a valid number
+    if number.isalpha():
+        return False
+    return True
+```
+
+## Data Sanitization
+
+Data sanitization cleans input by replacing potentially malicious characters with non-processing codes.
+
+<Steps>
+
+<Step title="Understand the Risk">
+  The malicious string `"';DROP TABLE users"` could execute SQL commands if not sanitized
+</Step>
+
+<Step title="Sanitize Before Storage">
+  Convert to web-safe format: `&#39;&#59;DROP TABLE users`
+</Step>
+
+<Step title="Render Safely">
+  The sanitized string displays correctly but won't execute as code
+</Step>
+
+</Steps>
+
+### Manual Sanitization
+
+```python
+def replace_characters(input_string: str) -> str:
+    to_replace = ["<", ">", ";"]
+    replacements = ["%3C", "%3E", "%3B"]
+    char_list = list(input_string)
+    for i in range(len(char_list)):
+        if char_list[i] in to_replace:
+            index = to_replace.index(char_list[i])
+            char_list[i] = replacements[index]
+    return ''.join(char_list)
+```
+
+### Library-Based Sanitization (Recommended)
+
+```python
+import html
+
+def make_web_safe(string: str) -> str:
+    return html.escape(string)
+```
+
+<Tip>
+  Always use established libraries like Python's `html` module for sanitization. They're thoroughly tested and handle edge cases you might miss.
+</Tip>
+
+## Flask Exception Handling
+
+### Custom Error Handlers
+
+```python
+from flask import Flask, jsonify
+
+api = Flask(__name__)
+
+@api.errorhandler(400)
+def bad_request(error):
+    return jsonify({
+        'error': 'Bad Request',
+        'message': 'The request could not be understood'
+    }), 400
+
+@api.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'error': 'Not Found',
+        'message': 'The requested resource was not found'
+    }), 404
+
+@api.errorhandler(500)
+def internal_error(error):
+    # Log the error but don't expose details to user
+    api.logger.error(f'Server Error: {error}')
+    return jsonify({
+        'error': 'Internal Server Error',
+        'message': 'An unexpected error occurred'
+    }), 500
+```
+
+### Route-Level Exception Handling
+
+```python
+@api.route('/process_data', methods=['POST'])
+def process_data():
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data or 'username' not in data:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Sanitize input
+        username = make_web_safe(data['username'])
+        
+        # Process data
+        result = perform_operation(username)
+        
+        return jsonify({'success': True, 'result': result}), 200
+        
+    except ValueError as e:
+        api.logger.warning(f'Validation error: {e}')
+        return jsonify({'error': 'Invalid data format'}), 400
+        
+    except Exception as e:
+        api.logger.error(f'Unexpected error: {e}')
+        return jsonify({'error': 'An error occurred'}), 500
+```
+
+## Logging Best Practices
+
+<Warning>
+  Proper logging is recommended by the Australian Signals Directorate's Australian Cyber Security Centre as a best practice for threat detection.
+</Warning>
+
+### What to Log
+
+<CodeGroup>
+
+```python Security Events
+# Log authentication attempts
+api.logger.info(f'Login attempt for user: {username}')
+
+# Log failed validations
+api.logger.warning(f'Invalid input detected: {error_type}')
+
+# Log critical errors
+api.logger.critical(f'Database connection failed: {error}')
+```
+
+```python User Actions
+# Log data modifications
+api.logger.info(f'User {user_id} updated record {record_id}')
+
+# Log API access
+api.logger.info(f'API endpoint accessed: {request.path} by {get_remote_address()}')
+```
+
+</CodeGroup>
+
+### What NOT to Log
+
+<Warning>
+  **Never log sensitive data**:
+  - Passwords (even hashed)
+  - API keys or tokens
+  - Personal identifiable information (PII)
+  - Credit card numbers
+  - Session tokens
+</Warning>
+
+### Logging Configuration
+
+```python
+import logging
+from logging.handlers import RotatingFileHandler
+
+# Configure logging
+handler = RotatingFileHandler('app.log', maxBytes=10000, backupCount=3)
+handler.setLevel(logging.INFO)
+
+formatter = logging.Formatter(
+    '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+)
+handler.setFormatter(formatter)
+
+api.logger.addHandler(handler)
+```
+
+## Code Review Checklist
+
+When reviewing exception handling in code, ask:
+
+<Steps>
+
+<Step title="Exception Handling">
+  - What approach(es) for error handling is being used?
+  - Are errors logged with enough detail for analysis?
+</Step>
+
+<Step title="User Feedback">
+  - What kind of details about an error are displayed to the user?
+  - Are error messages user-friendly without exposing system details?
+</Step>
+
+<Step title="Data Validation">
+  - Is user-submitted data validated?
+  - Is data validated on entry or when used?
+  - How is validation accomplished (whitelisting, regex, etc.)?
+</Step>
+
+<Step title="Database Security">
+  - Are database errors logged with enough detail?
+  - Are parameterized queries used instead of string concatenation?
+</Step>
+
+</Steps>
+
+## Complete Example: Secure Form Processing
+
+```python
+from flask import Flask, request, jsonify
+import html
+import re
+import logging
+
+api = Flask(__name__)
+
+@api.route('/register', methods=['POST'])
+def register_user():
+    try:
+        # Get and validate JSON data
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate email
+        email = data.get('email', '').strip()
+        if not check_email(email):
+            api.logger.warning(f'Invalid email format attempted: {email}')
+            return jsonify({'error': 'Invalid email format'}), 400
+        
+        # Validate password
+        try:
+            password = check_password(data.get('password', ''))
+        except ValueError as e:
+            api.logger.warning(f'Password validation failed: {e}')
+            return jsonify({'error': f'Password {e}'}), 400
+        
+        # Sanitize username
+        username = html.escape(data.get('username', '').strip())
+        if not validate_name(username):
+            return jsonify({'error': 'Username must contain only letters'}), 400
+        
+        # Process registration (database operations)
+        # ...
+        
+        api.logger.info(f'New user registered: {email}')
+        return jsonify({'success': True, 'message': 'User registered'}), 201
+        
+    except Exception as e:
+        api.logger.error(f'Registration error: {str(e)}')
+        return jsonify({'error': 'Registration failed'}), 500
+```
+
+## Key Takeaways
+
+<Tip>
+  **Best Practices**:
+  - Use exception handling to manage errors gracefully
+  - Validate all input data before processing
+  - Sanitize data using established libraries
+  - Log security events without exposing sensitive data
+  - Provide user-friendly error messages that don't reveal system details
+  - Review code regularly for exception handling weaknesses
+</Tip>
+
+## Additional Resources
+
+- [Python Exception Handling Documentation](https://docs.python.org/3/tutorial/errors.html)
+- [Python Try Statement Reference](https://docs.python.org/3/reference/compound_stmts.html#try)
+- [ACSC Logging Best Practices](https://www.cyber.gov.au/resources-business-and-government/maintaining-devices-and-systems/system-hardening-and-administration/system-monitoring/best-practices-event-logging-threat-detection)
+- [Python HTML Library](https://docs.python.org/3/library/html.html)
+- [Jinja2 Template Security](https://jinja.palletsprojects.com/en/3.1.x/)

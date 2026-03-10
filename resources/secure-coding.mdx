@@ -1,0 +1,468 @@
+---
+title: 'Secure Coding Practices'
+description: 'Comprehensive guide to secure coding practices including input validation, code review, testing approaches, and common vulnerability mitigation'
+icon: 'code'
+---
+
+## Overview
+
+Secure coding is the practice of developing software in a way that guards against accidental introduction of security vulnerabilities. Security should be considered at every phase of the Software Development Life Cycle (SDLC) to ensure it's an integral part of development, not an afterthought.
+
+<Note>
+  The cost of patching vulnerabilities increases dramatically as an application moves through SDLC phases. Early security integration is critical.
+</Note>
+
+## Security by Design in the SDLC
+
+| Phase | Security Processes |
+|-------|-------------------|
+| **Requirements Definition** | • Gather specific security and privacy requirements<br/>• Vulnerability assessment |
+| **Determining Specifications** | • Explicit security and privacy specifications<br/>• Risk assessment |
+| **Design** | • Threat modelling<br/>• Security design review<br/>• Security tests included in test designs |
+| **Development** | • Code reviews<br/>• Static application security testing (SAST) |
+| **Integration** | • Risk assessment<br/>• Code reviews<br/>• Dynamic application security testing (DAST)<br/>• Grey-box penetration testing |
+| **Testing & Debugging** | • Code reviews<br/>• SAST and DAST<br/>• Penetration testing |
+| **Installation** | • Penetration testing<br/>• Vulnerability assessment |
+| **Maintenance** | • Log monitoring & reporting<br/>• Vulnerability assessment |
+
+## Input Validation
+
+Input validation is a security control where input is checked to be valid data before storage or processing. Invalid data should be discarded with appropriate UI feedback.
+
+### Front-End Validation
+
+<Steps>
+
+<Step title="Use HTML Form Attributes">
+  Implement client-side validation using HTML5 attributes:
+  
+  ```html
+  <input    
+      id="email" 
+      type="email" 
+      name="email" 
+      maxlength="32" 
+      required  
+      pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}$"  
+      placeholder="Email address: you@address.com.au"  
+  >
+  ```
+</Step>
+
+<Step title="Limit Input Length">
+  Use `maxlength` to prevent long strings containing malicious scripts:
+  
+  ```html
+  <input 
+      id="password" 
+      type="password" 
+      name="password" 
+      maxlength="64" 
+      required  
+      pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*_=+-]).{8,16}$"  
+  >
+  ```
+</Step>
+
+<Step title="Provide Type Hints">
+  Use placeholder text to guide users on expected input format
+</Step>
+
+</Steps>
+
+### Back-End Validation
+
+<Warning>
+  Never trust client-side validation alone. Always validate on the server side as client-side checks can be bypassed.
+</Warning>
+
+```python
+import re
+import html
+
+def validate_and_sanitize_input(user_input: str, input_type: str) -> str:
+    """
+    Validates and sanitizes user input based on type
+    """
+    if input_type == 'email':
+        if not re.fullmatch(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", user_input):
+            raise ValueError("Invalid email format")
+    
+    elif input_type == 'name':
+        if not user_input.isalpha():
+            raise ValueError("Name must contain only letters")
+    
+    elif input_type == 'number':
+        if not user_input.isdigit():
+            raise ValueError("Must be a valid number")
+    
+    # Sanitize by making web-safe
+    return html.escape(user_input)
+```
+
+## Common Vulnerabilities & Mitigation
+
+### SQL Injection Prevention
+
+SQL injection attacks insert malicious SQL code through input fields to manipulate database queries.
+
+<CodeGroup>
+
+```python Vulnerable Code
+# NEVER DO THIS
+cur.execute(f"SELECT * FROM users WHERE username == '{username}' AND password == '{password}'")
+```
+
+```python Secure Code
+# ALWAYS USE THIS
+cur.execute('SELECT * FROM users WHERE username == ? AND password == ?', (username, password))
+```
+
+</CodeGroup>
+
+<Steps>
+
+<Step title="Use Parameterized Queries">
+  Always use query parameters instead of string concatenation
+</Step>
+
+<Step title="Validate Input">
+  Implement defensive data handling for all user input
+</Step>
+
+<Step title="Salt Table Names">
+  Add random 5-character strings to table names to prevent predictable targets
+</Step>
+
+<Step title="Require Authentication">
+  Never accept form input without authentication
+</Step>
+
+</Steps>
+
+### XSS (Cross-Site Scripting) Prevention
+
+XSS attacks inject malicious scripts into trusted websites through unsanitized user input.
+
+#### Test Scripts for Penetration Testing
+
+```html
+<!-- Test these in input boxes to check for XSS vulnerabilities -->
+<script>alert(1)</script>
+<img src=x onerror=alert(1)>
+<svg onload=alert(1)>
+<iframe src="javascript:alert(1)"></iframe>
+```
+
+<Warning>
+  Only test XSS vulnerabilities on your own applications or with explicit permission. Unauthorized testing is illegal.
+</Warning>
+
+#### XSS Countermeasures
+
+<Steps>
+
+<Step title="Code Reviews">
+  Regularly review code for external script references
+</Step>
+
+<Step title="Validate Third-Party Libraries">
+  Only use known, secure libraries. Locally serve after review when possible
+</Step>
+
+<Step title="Implement CSP">
+  Use Content Security Policy to block unauthorized scripts:
+  
+  ```html
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src 'self'; script-src 'self'">
+  ```
+</Step>
+
+<Step title="Sanitize Data">
+  Use defensive data handling practices:
+  
+  ```python
+  import html
+  
+  safe_content = html.escape(user_input)
+  ```
+</Step>
+
+<Step title="Declare Language & Charset">
+  ```html
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+  </head>
+  ```
+</Step>
+
+</Steps>
+
+## Code Review Process
+
+Code review is the manual examination of source code to identify security vulnerabilities at the code level.
+
+### Code Review Checklist
+
+<Tip>
+  **Privacy Review**
+  - Is sensitive data stored unnecessarily?
+  - Are passwords encrypted before storage?
+  - Can users download and delete their data?
+  - Are log files properly protected?
+</Tip>
+
+<Tip>
+  **Authentication Review**
+  - Are all users authenticated?
+  - What authentication factors are used?
+  - Are password complexity policies enforced?
+</Tip>
+
+<Tip>
+  **Authorization Review**
+  - Are role-based permissions implemented?
+  - Is authorization checked on every request?
+  - Are sensitive files protected from unauthorized access?
+</Tip>
+
+<Tip>
+  **Data Validation Review**
+  - Is all user input validated?
+  - Is validation performed on entry?
+  - Are parameterized queries used for databases?
+  - What validation methods are used (whitelist, regex, etc.)?
+</Tip>
+
+<Tip>
+  **Error Handling Review**
+  - Are errors logged with sufficient detail?
+  - What error details are shown to users?
+  - Are database errors properly logged?
+</Tip>
+
+<Tip>
+  **Session Management Review**
+  - How is session state managed?
+  - How are session IDs generated?
+  - Are previous sessions deleted on new login?
+  - Are session timeouts implemented?
+</Tip>
+
+<Tip>
+  **Logging Review**
+  - Is logging implemented?
+  - Where are logs stored?
+  - Are log messages timestamped?
+  - Is sensitive data excluded from logs?
+</Tip>
+
+<Tip>
+  **Encryption Review**
+  - What encryption algorithms are used?
+  - Are passwords salted and hashed?
+  - Are encryption libraries current and from trusted sources?
+</Tip>
+
+## Testing Approaches
+
+### Static Application Security Testing (SAST)
+
+SAST analyzes source code before compilation to find security vulnerabilities. This is automated white-box testing.
+
+<CodeGroup>
+
+```markdown Advantages
+- Reduces manual effort
+- Time efficient
+- Early SDLC integration
+- 100% code coverage
+- Detailed reporting
+```
+
+```markdown Disadvantages
+- Cannot detect business logic flaws
+- Cannot discover runtime issues
+- Not suited for user input tracking
+- Requires source code access
+- Generic recommendations
+```
+
+</CodeGroup>
+
+**Tools**: GitHub Security Scan, SonarQube, Bandit (Python)
+
+### Dynamic Application Security Testing (DAST)
+
+DAST tests running applications without knowledge of internal structure or source code. This is automated black-box testing.
+
+<CodeGroup>
+
+```markdown Advantages
+- No false positives
+- Discovers runtime issues
+- Finds user interaction vulnerabilities
+- No source code required
+```
+
+```markdown Disadvantages
+- Requires working application
+- Needs special infrastructure
+- Late-stage SDLC testing
+- Incomplete code path coverage
+```
+
+</CodeGroup>
+
+**Tools**: OWASP ZAP, Burp Suite, Acunetix
+
+### Penetration Testing
+
+Simulated cyber-attacks to find and exploit vulnerabilities in systems.
+
+<Warning>
+  Students MUST only perform penetration tests on their own applications or with explicit written permission. Unauthorized testing is illegal.
+</Warning>
+
+#### Types of Penetration Testing
+
+- **White-box**: Full knowledge of application, live log monitoring
+- **Grey-box**: Partial knowledge of application
+- **Black-box**: No knowledge, only front-end access
+
+#### Penetration Testing Tools
+
+<Steps>
+
+<Step title="XSS Test Scripts">
+  Use non-destructive scripts to test input validation
+</Step>
+
+<Step title="SQL Injection Tests">
+  Test with common injection patterns:
+  - `105 OR 1=1`
+  - `" OR ""="`
+  - `105; DROP TABLE users`
+</Step>
+
+<Step title="Common Credentials">
+  Test authentication with common username/password combinations
+</Step>
+
+<Step title="API Testing">
+  Use tools like Thunder Client or Postman to test API endpoints
+</Step>
+
+</Steps>
+
+**Testing Tools**:
+- ZAPROXY - Open source penetration testing
+- CyberChef - Data analysis and decoding
+- Wireshark - Network protocol analysis
+- Postman - API testing
+
+## Secure Form Processing Example
+
+```python
+from flask import Flask, request, jsonify
+import html
+import re
+
+api = Flask(__name__)
+
+def validate_form_data(data):
+    """
+    Comprehensive form validation
+    """
+    errors = []
+    
+    # Validate email
+    email = data.get('email', '').strip()
+    if not re.fullmatch(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email):
+        errors.append('Invalid email format')
+    
+    # Validate password strength
+    password = data.get('password', '')
+    if len(password) < 8 or len(password) > 20:
+        errors.append('Password must be 8-20 characters')
+    if not re.search(r'[A-Z]', password):
+        errors.append('Password must contain uppercase letter')
+    if not re.search(r'[a-z]', password):
+        errors.append('Password must contain lowercase letter')
+    if not re.search(r'[0-9]', password):
+        errors.append('Password must contain digit')
+    if not re.search(r'[@$!%*?&]', password):
+        errors.append('Password must contain special character')
+    
+    # Validate username
+    username = data.get('username', '').strip()
+    if not username.isalnum():
+        errors.append('Username must be alphanumeric')
+    
+    return errors
+
+@api.route('/submit_form', methods=['POST'])
+def submit_form():
+    try:
+        data = request.get_json()
+        
+        # Validate input
+        errors = validate_form_data(data)
+        if errors:
+            return jsonify({'errors': errors}), 400
+        
+        # Sanitize data
+        safe_data = {
+            'email': html.escape(data['email'].strip()),
+            'username': html.escape(data['username'].strip())
+        }
+        
+        # Process data (database operations)
+        # Use parameterized queries
+        # cur.execute('INSERT INTO users (email, username) VALUES (?, ?)', 
+        #             (safe_data['email'], safe_data['username']))
+        
+        api.logger.info(f'Form submitted successfully for {safe_data["email"]}')
+        return jsonify({'success': True}), 201
+        
+    except Exception as e:
+        api.logger.error(f'Form submission error: {str(e)}')
+        return jsonify({'error': 'Submission failed'}), 500
+```
+
+## Best Practices Summary
+
+<Tip>
+  **Key Security Principles**:
+  
+  1. **Defense in Depth**: Implement multiple layers of security
+  2. **Principle of Least Privilege**: Grant minimum necessary permissions
+  3. **Fail Securely**: Ensure failures don't compromise security
+  4. **Never Trust User Input**: Always validate and sanitize
+  5. **Keep Security Simple**: Complex security is harder to maintain
+  6. **Fix Security Issues Correctly**: Understand root causes
+  7. **Use Established Libraries**: Don't roll your own crypto/security
+  8. **Security by Design**: Integrate security from the start
+  9. **Regular Updates**: Keep dependencies and libraries current
+  10. **Comprehensive Logging**: Monitor and review security events
+</Tip>
+
+## Additional Resources
+
+### Documentation
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Python Security Best Practices](https://python.readthedocs.io/en/stable/library/security_warnings.html)
+- [Flask Security Considerations](https://flask.palletsprojects.com/en/latest/security/)
+- [NIST Secure Software Development Framework](https://csrc.nist.gov/Projects/ssdf)
+
+### Testing Tools
+- [OWASP SAST Tools List](https://owasp.org/www-community/Source_Code_Analysis_Tools)
+- [OWASP DAST Tools List](https://owasp.org/www-community/Vulnerability_Scanning_Tools)
+- [GitHub Security Features](https://docs.github.com/en/code-security)
+
+### Learning Resources
+- [OWASP WebGoat](https://owasp.org/www-project-webgoat/) - Interactive security training
+- [PortSwigger Web Security Academy](https://portswigger.net/web-security) - Free online training
+- [NESA Software Engineering Syllabus](https://curriculum.nsw.edu.au/learning-areas/tas/software-engineering-11-12-2022)

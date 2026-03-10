@@ -1,0 +1,632 @@
+---
+title: 'Sandbox Best Practices'
+description: 'Essential safety guidelines and testing methodologies for secure vulnerability research'
+---
+
+<Warning>
+**Critical Safety Notice:** The Normo Unsecure PWA contains intentional security vulnerabilities and should **NEVER** be run outside a properly isolated sandbox environment. Following these best practices is essential to protect your systems, data, and network.
+</Warning>
+
+## Core Safety Principles
+
+### Never Run in Production
+
+<CardGroup cols={2}>
+  <Card title="Prohibited Environments" icon="ban">
+    - Production servers
+    - Corporate networks
+    - Shared hosting platforms
+    - Cloud services with production data
+    - Systems with sensitive information
+  </Card>
+  <Card title="Approved Environments" icon="check">
+    - Isolated VMs or containers
+    - Dedicated testing hardware
+    - Secure architecture sandboxes
+    - Properly configured cloud development environments
+    - Air-gapped systems
+  </Card>
+</CardGroup>
+
+### Network Isolation
+
+Ensure your sandbox environment is properly isolated from production networks:
+
+<Steps>
+  <Step title="Verify Network Configuration">
+    - Use NAT or Host-only networking in VMs
+    - Never use Bridged mode with vulnerable applications
+    - Configure Docker with `--internal` networks when appropriate
+    - Disable external network access if not needed for testing
+  </Step>
+  <Step title="Test Isolation">
+    ```bash
+    # From within sandbox, verify you cannot reach production
+    ping production-server.local  # Should fail
+    curl https://internal-api.company.com  # Should fail
+    ```
+  </Step>
+  <Step title="Monitor Network Traffic">
+    Use tools like Wireshark to monitor and verify network isolation during testing.
+  </Step>
+</Steps>
+
+<Warning>
+If testing network-related vulnerabilities, ensure you have a dedicated testing network that is completely isolated from production infrastructure.
+</Warning>
+
+## Data Management
+
+### Never Use Real Data
+
+<Info>
+**Golden Rule:** Only use synthetic or anonymized test data in sandbox environments. Never import production databases, user information, or sensitive files.
+</Info>
+
+#### Safe Test Data Guidelines
+
+<Accordion title="User Data">
+  **Use:**
+  - Fictional names and addresses
+  - Test email addresses (e.g., `test@example.com`)
+  - Synthetic phone numbers
+  - Dummy credit card numbers (test card numbers from payment processor docs)
+
+  **Never Use:**
+  - Real user credentials
+  - Actual email addresses
+  - Personal information from databases
+  - Production API keys or tokens
+</Accordion>
+
+<Accordion title="Database Content">
+  **Create test databases with:**
+  - Generated lorem ipsum text
+  - Faker libraries for realistic but fake data
+  - Small datasets (< 1000 records for most tests)
+  - Clear identifiers that data is for testing
+
+  **Never:**
+  - Copy production databases
+  - Use backups containing real data
+  - Import user-generated content from production
+</Accordion>
+
+<Accordion title="Credentials and Secrets">
+  **Use:**
+  - Temporary test credentials
+  - Sandbox-only API keys
+  - Development-specific tokens
+  - Well-known test passwords (document them clearly)
+
+  **Never:**
+  - Reuse production credentials
+  - Test with your personal passwords
+  - Store real API keys in test code
+  - Commit secrets to version control
+</Accordion>
+
+### Data Cleanup
+
+<Steps>
+  <Step title="Document All Test Data">
+    Maintain a list of all test accounts, databases, and credentials created during testing.
+  </Step>
+  <Step title="Regular Cleanup">
+    Periodically purge test data and reset the sandbox to a clean state.
+  </Step>
+  <Step title="Secure Disposal">
+    When decommissioning a sandbox, ensure all data is securely deleted, especially if using cloud services.
+  </Step>
+</Steps>
+
+## Security Testing Best Practices
+
+### Legal and Ethical Considerations
+
+<Warning>
+**Legal Notice:** Students MUST be extremely aware of the legal implications of performing unauthorized penetration testing. Students MUST only perform penetration tests on:
+
+- Their own applications
+- Peers' applications with **expressed permission**
+- Applications explicitly designated for security testing
+
+Unauthorized penetration testing is illegal and can result in criminal charges.
+</Warning>
+
+### Testing Scope and Boundaries
+
+<Steps>
+  <Step title="Define Testing Scope">
+    Before beginning security tests, document:
+    - What systems will be tested
+    - What testing methods will be used
+    - Time windows for testing
+    - Success criteria and stop conditions
+  </Step>
+  <Step title="Obtain Permission">
+    If testing peer applications:
+    - Get written or documented permission
+    - Share your testing plan
+    - Agree on communication protocols
+    - Establish incident response procedures
+  </Step>
+  <Step title="Set Boundaries">
+    Understand what is out-of-scope:
+    - Social engineering against real people
+    - Testing production environments
+    - Attacks that could cause data loss
+    - Excessive resource consumption (DoS)
+  </Step>
+</Steps>
+
+### SAST Best Practices
+
+Static Application Security Testing analyzes source code without execution.
+
+<CardGroup cols={2}>
+  <Card title="Code Review Checklist" icon="list-check">
+    Review code for:
+    - Privacy issues (unnecessary data storage)
+    - Authentication mechanisms
+    - Authorization controls
+    - Data validation
+    - Exception handling
+    - Session management
+    - Logging practices
+    - Encryption usage
+  </Card>
+  <Card title="Automated SAST Tools" icon="robot">
+    Utilize tools from the [OWASP SAST Tools List](https://owasp.org/www-community/Source_Code_Analysis_Tools):
+    - Bandit (Python)
+    - SonarQube
+    - GitHub Security Scanning
+    - Semgrep
+  </Card>
+</CardGroup>
+
+<Accordion title="Code Review Focus Areas">
+  **Privacy:**
+  - Is sensitive data stored unnecessarily?
+  - Are passwords encrypted before storage?
+  - Can users download and delete their data?
+  - Are users provided access to privacy policy?
+  - Is sensitive data logged to error files?
+
+  **Authentication:**
+  - Are users properly authenticated?
+  - What authentication factors are used?
+  - Are there password complexity policies?
+  - Are sessions properly managed?
+
+  **Data Validation:**
+  - Is user-submitted data validated?
+  - When is validation performed?
+  - What validation methods are used (whitelist/blacklist)?
+  - Are SQL queries using parameterized statements?
+
+  **Error Handling:**
+  - What error details are shown to users?
+  - Are errors logged with sufficient detail?
+  - Are database errors properly handled?
+</Accordion>
+
+### DAST Best Practices
+
+Dynamic Application Security Testing examines running applications.
+
+<Steps>
+  <Step title="Prepare Testing Environment">
+    - Ensure sandbox is properly isolated
+    - Deploy application in testing mode
+    - Configure logging for detailed capture
+    - Prepare monitoring tools
+  </Step>
+  <Step title="Use Automated DAST Tools">
+    Leverage tools from the [OWASP DAST Tools List](https://owasp.org/www-community/Vulnerability_Scanning_Tools):
+    - [ZAPROXY](https://www.zaproxy.org/) - Open source pen testing application
+    - [Burp Suite](https://portswigger.net/burp) - Web security testing
+    - [Nikto](https://cirt.net/Nikto2) - Web server scanner
+  </Step>
+  <Step title="Test Common Vulnerabilities">
+    Systematically test for:
+    - SQL injection
+    - Cross-site scripting (XSS)
+    - Cross-site request forgery (CSRF)
+    - Broken authentication
+    - Security misconfigurations
+    - Sensitive data exposure
+  </Step>
+  <Step title="Document Findings">
+    Record all vulnerabilities with:
+    - Detailed description
+    - Steps to reproduce
+    - Impact assessment
+    - Recommended remediation
+    - Screenshots or evidence
+  </Step>
+</Steps>
+
+<Info>
+**DAST Tool Selection:** For the [NESA Software Engineering Syllabus](https://curriculum.nsw.edu.au/learning-areas/tas/software-engineering-11-12-2022/overview), students only need to know that penetration testing tools exist and have basic experience with using a tool and its reporting capabilities. Don't spend excessive time comparing tools.
+</Info>
+
+### Penetration Testing Best Practices
+
+Penetration testing simulates real-world attacks to find and exploit vulnerabilities.
+
+#### Types of Penetration Testing
+
+<CardGroup cols={3}>
+  <Card title="White-Box" icon="box-open">
+    Full knowledge of application. Tester has access to source code and can monitor logs in real-time.
+  </Card>
+  <Card title="Grey-Box" icon="box">
+    Partial knowledge of application. Some documentation and credentials provided.
+  </Card>
+  <Card title="Black-Box" icon="box-taped">
+    No background information. Only the front-end is accessible, simulating external attacker.
+  </Card>
+</CardGroup>
+
+#### Brute Force Testing
+
+<Accordion title="XSS Testing Scripts">
+  Test input fields and URL parameters with [non-destructive XSS test scripts](https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA/tree/main/.student_resources/XSS):
+
+  ```html
+  <script>alert('XSS')</script>
+  <img src=x onerror=alert('XSS')>
+  <svg/onload=alert('XSS')>
+  ```
+
+  **Test locations:**
+  - Form input fields
+  - URL parameters
+  - HTTP headers
+  - File upload names
+  - Search queries
+</Accordion>
+
+<Accordion title="SQL Injection Testing">
+  Test authentication and data queries with [SQL injection patterns](https://www.w3schools.com/sql/sql_injection.asp):
+
+  ```sql
+  ' OR '1'='1
+  ' OR '1'='1' --
+  ' OR '1'='1' /*
+  admin' --
+  1' UNION SELECT NULL--
+  ```
+
+  **Test locations:**
+  - Login forms
+  - Search fields
+  - URL parameters
+  - Any user input that queries a database
+</Accordion>
+
+<Accordion title="Credential Testing">
+  Use [common username and password lists](https://github.com/danielmiessler/SecLists/tree/master/Passwords/Common-Credentials) for dictionary attacks:
+
+  **Common weak passwords:**
+  - password, 123456, admin
+  - Default credentials
+  - Password variations
+
+  **Test responsibly:**
+  - Implement rate limiting in testing
+  - Don't overwhelm the system
+  - Document successful compromises
+</Accordion>
+
+#### Useful Testing Tools
+
+<CardGroup cols={2}>
+  <Card title="HTTP Request Testing" icon="globe">
+    [Simple HTTP Request Tool](https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA/tree/main/.student_resources/flask_safe_API) - Test HTTP requests for localhost websites
+  </Card>
+  <Card title="Data Analysis" icon="flask">
+    [CyberChef](https://gchq.github.io/CyberChef/) - Swiss Army Knife for analyzing and decoding data
+  </Card>
+  <Card title="DNS/Network Scanning" icon="network-wired">
+    [ViewDNS](https://viewdns.info/) - DNS and hosting scanning tools
+  </Card>
+  <Card title="SSL/TLS Testing" icon="lock">
+    [SSL Labs](https://www.ssllabs.com/projects/index.html) - SSL scanning and validation tools
+  </Card>
+  <Card title="API Testing" icon="code">
+    [Postman](https://www.postman.com/) - Test APIs and applications
+  </Card>
+  <Card title="Network Analysis" icon="chart-line">
+    [Wireshark](https://www.wireshark.org/about.html) - Network protocol analyzer
+  </Card>
+</CardGroup>
+
+## Testing Workflow and Documentation
+
+### Systematic Testing Approach
+
+<Steps>
+  <Step title="Phase 1: Reconnaissance">
+    **Information Gathering:**
+    - Map application structure
+    - Identify technologies used
+    - Document endpoints and functionality
+    - Review available source code (white-box)
+    
+    **Tools:** Browser DevTools, Wappalyzer, manual exploration
+  </Step>
+  <Step title="Phase 2: Automated Scanning">
+    **SAST:**
+    - Run static code analysis tools
+    - Review tool reports
+    - Prioritize findings by severity
+    
+    **DAST:**
+    - Run automated vulnerability scanners
+    - Configure scanners for thorough coverage
+    - Review and triage findings
+    
+    **Tools:** Bandit, SonarQube, ZAPROXY, Burp Suite
+  </Step>
+  <Step title="Phase 3: Manual Testing">
+    **Code Review:**
+    - Examine authentication logic
+    - Review data validation
+    - Check error handling
+    - Assess session management
+    
+    **Penetration Testing:**
+    - Test for injection flaws
+    - Attempt XSS attacks
+    - Test CSRF protection
+    - Verify access controls
+  </Step>
+  <Step title="Phase 4: Documentation">
+    **For Each Vulnerability:**
+    - Vulnerability name and type
+    - Severity level (Critical/High/Medium/Low)
+    - Detailed description
+    - Affected components
+    - Steps to reproduce
+    - Proof of concept (screenshots, code)
+    - Impact assessment
+    - Recommended remediation
+  </Step>
+  <Step title="Phase 5: Remediation">
+    **Implement Fixes:**
+    - Develop patches using HTML/CSS/JS/SQL/JSON/Python
+    - Test patches in sandbox
+    - Verify vulnerability is resolved
+    - Document the fix
+    - Re-scan to ensure no new issues introduced
+  </Step>
+  <Step title="Phase 6: Final Report">
+    **Professional Report Including:**
+    1. Overview of technical analysis approach
+    2. Out-of-scope items
+    3. All vulnerabilities with impact assessments
+    4. Recommendations for security by design
+    5. Implementation of patches and fixes
+  </Step>
+</Steps>
+
+### Report Structure Template
+
+<Accordion title="1. Executive Summary">
+  - Project overview
+  - Testing methodology
+  - High-level findings
+  - Critical vulnerabilities summary
+  - Overall security posture assessment
+</Accordion>
+
+<Accordion title="2. Technical Analysis Approach">
+  - Testing scope and boundaries
+  - Tools and techniques used
+  - Testing environments
+  - Timeline of activities
+  - Team members involved
+</Accordion>
+
+<Accordion title="3. Out-of-Scope Items">
+  **Security/privacy issues that cannot be mitigated by technical solutions:**
+  - Organizational policies
+  - User behavior and training
+  - Physical security
+  - Third-party dependencies
+  
+  **Issues that must be tested in production:**
+  - Performance under real load
+  - Integration with production services
+  - Actual SSL/TLS configurations
+  - Production network security
+</Accordion>
+
+<Accordion title="4. Vulnerability Findings">
+  **For each vulnerability:**
+  - **ID:** VUL-001
+  - **Title:** SQL Injection in Login Form
+  - **Severity:** Critical
+  - **Description:** The login form does not properly sanitize user input...
+  - **Location:** `/login` endpoint, username parameter
+  - **Steps to Reproduce:**
+    1. Navigate to login page
+    2. Enter `admin' OR '1'='1` in username
+    3. Enter any password
+    4. Click submit
+  - **Impact:** Attacker can bypass authentication and gain admin access
+  - **Evidence:** [Screenshot or code snippet]
+  - **Recommendation:** Use parameterized queries
+</Accordion>
+
+<Accordion title="5. Security by Design Recommendations">
+  - Authentication and authorization improvements
+  - Input validation strategies
+  - Security headers implementation
+  - Encryption requirements
+  - Logging and monitoring
+  - Secure development practices
+  - Security testing in SDLC
+  - Incident response procedures
+</Accordion>
+
+<Accordion title="6. Implemented Fixes">
+  **For each patched vulnerability:**
+  - **Vulnerability ID:** VUL-001
+  - **Fix Description:** Implemented parameterized queries
+  - **Code Changes:**
+    ```python
+    # Before
+    query = f"SELECT * FROM users WHERE username='{username}'"
+    
+    # After  
+    query = "SELECT * FROM users WHERE username=?"
+    cursor.execute(query, (username,))
+    ```
+  - **Files Modified:** `app.py`, line 45-50
+  - **Testing:** Verified SQL injection no longer possible
+  - **Status:** Resolved
+</Accordion>
+
+## Environment Maintenance
+
+### Regular Updates
+
+<Steps>
+  <Step title="Update Base System">
+    Keep your sandbox OS and container images updated:
+    ```bash
+    # For Ubuntu/Debian VMs
+    sudo apt update && sudo apt upgrade
+    
+    # For Docker images
+    docker pull python:3.9-slim
+    ```
+  </Step>
+  <Step title="Update Dependencies">
+    Regularly update Python packages and testing tools:
+    ```bash
+    pip install --upgrade flask
+    pip list --outdated
+    ```
+  </Step>
+  <Step title="Update Testing Tools">
+    Keep SAST/DAST tools current for latest vulnerability detection:
+    ```bash
+    # Update ZAPROXY, Burp Suite, etc.
+    ```
+  </Step>
+</Steps>
+
+### Snapshot Management
+
+<Info>
+For VM-based sandboxes, maintain a library of snapshots at key stages of testing for easy rollback and comparison.
+</Info>
+
+**Recommended snapshots:**
+- **Clean Install:** Fresh OS with dependencies installed
+- **Application Deployed:** App running with test data
+- **Pre-Test:** Before beginning security assessment
+- **Post-Patch:** After implementing security fixes
+
+### Resource Monitoring
+
+<Steps>
+  <Step title="Monitor Disk Space">
+    ```bash
+    df -h  # Check available disk space
+    du -sh /path/to/sandbox  # Check sandbox size
+    ```
+  </Step>
+  <Step title="Monitor Memory Usage">
+    ```bash
+    free -h  # Check available RAM
+    docker stats  # Monitor container resource usage
+    ```
+  </Step>
+  <Step title="Clean Up Regularly">
+    ```bash
+    # Remove old Docker containers and images
+    docker system prune -a
+    
+    # Clear logs
+    sudo journalctl --vacuum-time=7d
+    ```
+  </Step>
+</Steps>
+
+## Emergency Procedures
+
+### If Sandbox is Compromised
+
+<Warning>
+If you suspect your sandbox has been compromised or behaving unexpectedly:
+</Warning>
+
+<Steps>
+  <Step title="Isolate Immediately">
+    - Disconnect network access
+    - Pause or stop the VM/container
+    - Do not access any other systems
+  </Step>
+  <Step title="Document the Incident">
+    - Note what you were testing
+    - Record any unusual behavior
+    - Save logs if accessible
+    - Take screenshots
+  </Step>
+  <Step title="Restore from Snapshot">
+    - Restore to last known good state
+    - If no snapshots, rebuild from scratch
+    - Do not attempt to "fix" a compromised sandbox
+  </Step>
+  <Step title="Review and Learn">
+    - Analyze what went wrong
+    - Update testing procedures
+    - Document lessons learned
+    - Share with peers if appropriate
+  </Step>
+</Steps>
+
+### If Host System is Affected
+
+<Warning>
+**Critical:** If you believe your host system (not just the sandbox) has been compromised:
+</Warning>
+
+1. **Disconnect from network immediately**
+2. **Contact your instructor or IT security team**
+3. **Do not attempt to investigate alone**
+4. **Follow institutional incident response procedures**
+5. **Report as required by Australian Government guidelines**: [Responding to cyber security incidents](https://www.cyber.gov.au/resources-business-and-government/essential-cyber-security/ism/cyber-security-guidelines/guidelines-cyber-security-incidents)
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="OWASP Testing Guide" icon="book" href="https://owasp.org/www-project-web-security-testing-guide/v42/">
+    Comprehensive web security testing resource
+  </Card>
+  <Card title="Australian Privacy" icon="shield-check" href="https://www.ag.gov.au/rights-and-protections/privacy">
+    Privacy compliance guidelines
+  </Card>
+  <Card title="NESA Syllabus" icon="graduation-cap" href="https://curriculum.nsw.edu.au/learning-areas/tas/software-engineering-11-12-2022/content/n12/fa039e749d">
+    Software Engineering course specifications
+  </Card>
+  <Card title="Student Resources" icon="folder-open" href="https://github.com/NBHS-Software-Engineering/Normo_Unsecure_PWA/tree/main/.student_resources">
+    Implementation guides and testing resources
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Start Security Testing" icon="magnifying-glass" href="/security-testing/overview">
+    Begin your systematic security assessment of the Normo Unsecure PWA
+  </Card>
+  <Card title="Review Vulnerabilities" icon="bug" href="/vulnerabilities/overview">
+    Learn about common vulnerabilities and how to identify them
+  </Card>
+</CardGroup>

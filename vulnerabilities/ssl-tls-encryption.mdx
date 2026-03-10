@@ -1,0 +1,523 @@
+---
+title: 'SSL/TLS Encryption'
+description: 'Implement HTTPS with SSL/TLS certificates to encrypt data transmission and protect against man-in-the-middle attacks'
+icon: 'lock'
+---
+
+## Overview
+
+Unencrypted data transmission is a critical security vulnerability. When your application communicates over HTTP instead of HTTPS, all data - including passwords, personal information, and session tokens - is sent in plain text and can be easily intercepted.
+
+<Warning>
+**Current Vulnerability:**
+The Normo Unsecure PWA runs on HTTP (port 5000) without any SSL/TLS encryption. All data transmitted between the browser and server is completely unprotected and readable by anyone monitoring network traffic.
+</Warning>
+
+## What is SSL/TLS?
+
+**SSL (Secure Sockets Layer)** and **TLS (Transport Layer Security)** are cryptographic protocols that provide secure communication over a network. TLS is the modern, more secure successor to SSL.
+
+<Note>
+While modern certificates use the TLS protocol, "SSL" remains a popular term among security professionals. You'll often see "SSL/TLS" or "SSL certificate" used interchangeably.
+</Note>
+
+### Why SSL/TLS Matters
+
+<Steps>
+  <Step title="Encryption">
+    Encrypts all data transmitted between client and server, making it unreadable to attackers
+  </Step>
+  <Step title="Authentication">
+    Verifies the server's identity using certificates from trusted Certificate Authorities (CAs)
+  </Step>
+  <Step title="Data Integrity">
+    Ensures data hasn't been tampered with during transmission
+  </Step>
+  <Step title="Trust & SEO">
+    Browsers show a padlock icon, and search engines rank HTTPS sites higher
+  </Step>
+</Steps>
+
+## The Current Vulnerability
+
+The Flask app currently runs without HTTPS:
+
+```python main.py
+if __name__ == "__main__":
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    app.run(debug=True, host="0.0.0.0", port=5000)
+    # Running on http://0.0.0.0:5000 - NO ENCRYPTION!
+```
+
+**What attackers can see:**
+- Usernames and passwords during login
+- Personal information (dates of birth)
+- User feedback and comments
+- Session cookies
+- All database queries and responses
+
+## Penetration Testing for This Vulnerability
+
+<CodeGroup>
+```bash Manual Testing
+# Test 1: Try accessing via HTTPS (should fail or show certificate error)
+curl https://127.0.0.1:5000
+
+# Test 2: Confirm HTTP works (insecure)
+curl http://127.0.0.1:5000
+
+# Test 3: Check if HTTP redirects to HTTPS (it shouldn't in vulnerable app)
+curl -I http://127.0.0.1:5000
+```
+
+```bash Wireshark Traffic Analysis
+# Use Wireshark to capture network traffic
+# 1. Start Wireshark on your network interface
+# 2. Filter for HTTP traffic: http
+# 3. Access the login page and submit credentials
+# 4. In Wireshark, you'll see the password in plain text!
+
+# Example filter:
+http.request.method == "POST"
+```
+
+```bash OpenSSL Certificate Check
+# Check if SSL/TLS is configured
+openssl s_client -connect 127.0.0.1:5000 -showcerts
+
+# For a properly configured HTTPS server, this shows certificate details
+# For HTTP-only server, this will fail
+```
+</CodeGroup>
+
+<Info>
+**Testing Tools:**
+- **Browser Developer Tools**: Check if the connection shows a padlock icon
+- **Wireshark**: Capture and analyze network packets to see unencrypted data
+- **curl**: Test HTTP vs HTTPS responses and redirects
+- **OpenSSL**: Verify certificate configuration and validity
+</Info>
+
+## Implementing SSL/TLS in Flask
+
+### Option 1: Self-Signed Certificate (Development)
+
+For development and testing, you can create a self-signed certificate.
+
+<Warning>
+Self-signed certificates are **only for development**. Browsers will show security warnings, and users must manually accept them. Never use self-signed certificates in production!
+</Warning>
+
+<Steps>
+  <Step title="Generate Self-Signed Certificate">
+    Use OpenSSL to create a certificate and private key:
+    
+    ```bash
+    openssl req -x509 -newkey rsa:4096 -nodes \
+      -out cert.pem \
+      -keyout key.pem \
+      -days 365 \
+      -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+    ```
+    
+    This creates:
+    - `cert.pem`: The SSL certificate
+    - `key.pem`: The private key
+  </Step>
+  
+  <Step title="Update Flask Configuration">
+    Modify your Flask app to use the certificate:
+    
+    ```python main.py
+    if __name__ == "__main__":
+        app.config["TEMPLATES_AUTO_RELOAD"] = True
+        app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+        
+        # Configure SSL/TLS
+        context = ('cert.pem', 'key.pem')
+        app.run(
+            debug=True,
+            host="0.0.0.0",
+            port=5000,
+            ssl_context=context
+        )
+    ```
+  </Step>
+  
+  <Step title="Test HTTPS Connection">
+    Access your app via HTTPS:
+    
+    ```bash
+    # Browser: https://127.0.0.1:5000
+    # CLI:
+    curl -k https://127.0.0.1:5000
+    ```
+    
+    The `-k` flag tells curl to accept self-signed certificates.
+  </Step>
+</Steps>
+
+### Option 2: Using Python ssl Module
+
+For more control over SSL configuration:
+
+```python main.py
+import ssl
+
+if __name__ == "__main__":
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    
+    # Create SSL context with more options
+    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    context.load_cert_chain('cert.pem', 'key.pem')
+    
+    app.run(
+        debug=True,
+        host="0.0.0.0",
+        port=5000,
+        ssl_context=context
+    )
+```
+
+### Option 3: Production Certificate (Let's Encrypt)
+
+For production environments, use a certificate from a trusted Certificate Authority.
+
+<Steps>
+  <Step title="Install Certbot">
+    ```bash
+    # Ubuntu/Debian
+    sudo apt-get update
+    sudo apt-get install certbot
+    
+    # macOS
+    brew install certbot
+    ```
+  </Step>
+  
+  <Step title="Obtain Certificate">
+    ```bash
+    # For a domain you own
+    sudo certbot certonly --standalone -d yourdomain.com
+    
+    # Certificates will be saved to:
+    # /etc/letsencrypt/live/yourdomain.com/fullchain.pem
+    # /etc/letsencrypt/live/yourdomain.com/privkey.pem
+    ```
+  </Step>
+  
+  <Step title="Configure Flask">
+    ```python main.py
+    if __name__ == "__main__":
+        context = (
+            '/etc/letsencrypt/live/yourdomain.com/fullchain.pem',
+            '/etc/letsencrypt/live/yourdomain.com/privkey.pem'
+        )
+        
+        app.run(
+            host="0.0.0.0",
+            port=443,  # Standard HTTPS port
+            ssl_context=context
+        )
+    ```
+  </Step>
+  
+  <Step title="Auto-Renewal">
+    Let's Encrypt certificates expire after 90 days. Set up auto-renewal:
+    
+    ```bash
+    # Add to crontab
+    0 0 * * * certbot renew --quiet
+    ```
+  </Step>
+</Steps>
+
+<Note>
+[Let's Encrypt](https://letsencrypt.org/docs/) is a free, automated, and open Certificate Authority trusted by all major browsers.
+</Note>
+
+## Enforcing HTTPS
+
+Once HTTPS is configured, force all HTTP traffic to redirect to HTTPS:
+
+### Using Flask-Talisman
+
+```bash
+pip install flask-talisman
+```
+
+```python main.py
+from flask import Flask
+from flask_talisman import Talisman
+
+app = Flask(__name__)
+
+# Force HTTPS and set security headers
+Talisman(app, force_https=True)
+
+# Your routes here...
+
+if __name__ == "__main__":
+    context = ('cert.pem', 'key.pem')
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        ssl_context=context
+    )
+```
+
+### Manual HTTP to HTTPS Redirect
+
+```python main.py
+from flask import Flask, request, redirect
+
+app = Flask(__name__)
+
+@app.before_request
+def before_request():
+    # Redirect HTTP to HTTPS
+    if not request.is_secure:
+        url = request.url.replace('http://', 'https://', 1)
+        return redirect(url, code=301)
+
+# Your routes here...
+```
+
+## Production Deployment Best Practices
+
+<Warning>
+**Never run Flask's built-in server in production!** Use a production-grade server instead.
+</Warning>
+
+### Using Gunicorn with Nginx
+
+The recommended production setup:
+
+<Steps>
+  <Step title="Install Gunicorn">
+    ```bash
+    pip install gunicorn
+    ```
+  </Step>
+  
+  <Step title="Run Flask with Gunicorn">
+    ```bash
+    gunicorn -w 4 -b 127.0.0.1:8000 main:app
+    ```
+  </Step>
+  
+  <Step title="Configure Nginx as Reverse Proxy">
+    ```nginx /etc/nginx/sites-available/yourapp
+    server {
+        listen 80;
+        server_name yourdomain.com;
+        return 301 https://$server_name$request_uri;
+    }
+    
+    server {
+        listen 443 ssl;
+        server_name yourdomain.com;
+        
+        ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+        
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+        
+        location / {
+            proxy_pass http://127.0.0.1:8000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+    ```
+  </Step>
+  
+  <Step title="Enable and Restart Nginx">
+    ```bash
+    sudo ln -s /etc/nginx/sites-available/yourapp /etc/nginx/sites-enabled/
+    sudo nginx -t
+    sudo systemctl restart nginx
+    ```
+  </Step>
+</Steps>
+
+### Using Cloudflare
+
+<Info>
+[Cloudflare](https://www.cloudflare.com/en-gb/) offers:
+- Free SSL/TLS certificates
+- Automatic HTTPS enforcement
+- DDoS protection
+- CDN for faster content delivery
+- Easy DNS management
+</Info>
+
+Steps to use Cloudflare:
+
+1. Sign up at cloudflare.com
+2. Add your domain
+3. Update your domain's nameservers
+4. Enable "Always Use HTTPS" in SSL/TLS settings
+5. Set SSL/TLS encryption mode to "Full (strict)"
+
+## Complete Secure Example
+
+Here's a complete example with SSL/TLS properly configured:
+
+```python main.py
+from flask import Flask, render_template, request, redirect
+from flask_talisman import Talisman
+import ssl
+import logging
+
+# Configure logging
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
+
+app = Flask(__name__)
+
+# Force HTTPS and set security headers
+Talisman(app, 
+    force_https=True,
+    strict_transport_security=True,
+    strict_transport_security_max_age=31536000
+)
+
+@app.route("/")
+def home():
+    # Log the connection type
+    if request.is_secure:
+        app.logger.info("Secure HTTPS connection")
+    else:
+        app.logger.warning("Insecure HTTP connection attempt")
+    
+    return render_template("/index.html")
+
+if __name__ == "__main__":
+    # Development: Self-signed certificate
+    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    context.load_cert_chain('cert.pem', 'key.pem')
+    
+    app.run(
+        debug=False,  # Disable debug in production
+        host="0.0.0.0",
+        port=5000,
+        ssl_context=context
+    )
+```
+
+## Testing Your SSL/TLS Implementation
+
+<CodeGroup>
+```bash Certificate Verification
+# Check certificate details
+openssl s_client -connect yourdomain.com:443 -showcerts
+
+# Verify certificate chain
+openssl s_client -connect yourdomain.com:443 -CApath /etc/ssl/certs
+```
+
+```bash Security Headers Check
+# Test security headers
+curl -I https://yourdomain.com
+
+# Should include:
+# Strict-Transport-Security: max-age=31536000
+# X-Content-Type-Options: nosniff
+# X-Frame-Options: SAMEORIGIN
+```
+
+```bash SSL Labs Test
+# Use SSL Labs for comprehensive testing
+# Visit: https://www.ssllabs.com/ssltest/
+# Enter your domain and run the test
+# Aim for an A+ rating
+```
+</CodeGroup>
+
+## Troubleshooting Common Issues
+
+### Certificate Not Trusted Error
+
+**Problem**: Browser shows "Your connection is not private"
+
+**Solution**: 
+- Development: This is expected with self-signed certificates
+- Production: Ensure you're using a certificate from a trusted CA
+- Check that the certificate chain is complete
+
+### Mixed Content Warnings
+
+**Problem**: Page loads over HTTPS but contains HTTP resources
+
+**Solution**:
+```html
+<!-- Bad: HTTP resource -->
+<script src="http://example.com/script.js"></script>
+
+<!-- Good: HTTPS resource -->
+<script src="https://example.com/script.js"></script>
+
+<!-- Better: Protocol-relative URL -->
+<script src="//example.com/script.js"></script>
+```
+
+### Port 443 Permission Denied
+
+**Problem**: Can't bind to port 443 without root privileges
+
+**Solution**:
+```bash
+# Option 1: Use authbind
+sudo apt-get install authbind
+sudo touch /etc/authbind/byport/443
+sudo chmod 500 /etc/authbind/byport/443
+sudo chown yourusername /etc/authbind/byport/443
+authbind --deep gunicorn -b 0.0.0.0:443 main:app
+
+# Option 2: Use a reverse proxy (Nginx) - Recommended
+# Run Flask on port 8000, let Nginx handle 443
+```
+
+## Best Practices Summary
+
+<Steps>
+  <Step title="Always use HTTPS in production">
+    Never deploy a web application without SSL/TLS encryption
+  </Step>
+  <Step title="Use trusted certificates">
+    Get free certificates from Let's Encrypt or use a CDN like Cloudflare
+  </Step>
+  <Step title="Enforce HTTPS">
+    Redirect all HTTP traffic to HTTPS automatically
+  </Step>
+  <Step title="Use modern TLS versions">
+    Support only TLS 1.2 and TLS 1.3, disable older protocols
+  </Step>
+  <Step title="Implement HSTS">
+    Use HTTP Strict Transport Security headers to force HTTPS
+  </Step>
+  <Step title="Test regularly">
+    Use SSL Labs and other tools to verify your configuration
+  </Step>
+  <Step title="Keep certificates updated">
+    Set up automatic renewal for Let's Encrypt certificates
+  </Step>
+</Steps>
+
+## Additional Resources
+
+- [Let's Encrypt Documentation](https://letsencrypt.org/docs/)
+- [Flask Self-Signed TLS Certificate Tutorial](https://yuxingonwork.medium.com/understand-https-with-a-python-flask-example-self-signed-certificate-ec2cd2e41567)
+- [Cloudflare SSL/TLS](https://www.cloudflare.com/en-gb/)
+- [SSL Labs Server Test](https://www.ssllabs.com/ssltest/)
+- [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/)
+- [OWASP Transport Layer Protection Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html)

@@ -1,0 +1,277 @@
+---
+title: 'Content Security Policy'
+description: 'Implement CSP headers to protect against XSS attacks in your Flask application'
+icon: 'shield-check'
+---
+
+<Info>
+  Content Security Policy (CSP) is a W3C recommendation since 2016 and the industry standard for securing web applications against cross-site scripting (XSS) attacks.
+</Info>
+
+## Overview
+
+Content Security Policy (CSP) significantly reduces the risk and impact of cross-site scripting attacks in modern browsers by controlling which resources can be loaded and executed on your web pages.
+
+### Current Vulnerability
+
+The Normo Unsecure PWA currently **lacks CSP headers**, making it vulnerable to:
+- Cross-site scripting (XSS) attacks
+- Unauthorized script execution
+- Data injection attacks
+- Clickjacking
+
+Inspecting `templates/layout.html:1-35`, there are no CSP headers defined, and `main.py:1-74` shows no CSP decorator usage on routes.
+
+## Implementation Guide
+
+<Steps>
+  <Step title="Install Flask-CSP Extension">
+    Install the Flask-CSP package to easily manage CSP headers:
+
+    ```bash
+    pip install flask-csp
+    ```
+  </Step>
+
+  <Step title="Design Your CSP Policy">
+    Design a policy that fits your application's needs. You can:
+    - Follow [W3C CSP documentation](http://www.w3.org/TR/CSP2/)
+    - Use a [CSP generator tool](https://www.validbot.com/tools/csp-wizard.php)
+    - Start with the recommended policy below
+  </Step>
+
+  <Step title="Add CSP Decorator to Routes">
+    Import and apply the CSP decorator to your Flask routes:
+
+    <CodeGroup>
+      ```python main.py
+      from flask import Flask, render_template, request, redirect
+      from flask_cors import CORS
+      from flask_csp.csp import csp_header
+      import user_management as dbHandler
+
+      app = Flask(__name__)
+      CORS(app)
+
+      @app.route("/", methods=["POST", "GET"])
+      @app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+      @csp_header({
+          "base-uri": "'self'",
+          "default-src": "'self'",
+          "style-src": "'self'",
+          "script-src": "'self'",
+          "img-src": "*",
+          "media-src": "'self'",
+          "font-src": "'self'",
+          "object-src": "'self'",
+          "child-src": "'self'",
+          "connect-src": "'self'",
+          "worker-src": "'self'",
+          "report-uri": "/csp_report",
+          "frame-ancestors": "'none'",
+          "form-action": "'self'",
+          "frame-src": "'none'",
+      })
+      def home():
+          if request.method == "GET" and request.args.get("url"):
+              url = request.args.get("url", "")
+              return redirect(url, code=302)
+          elif request.method == "GET":
+              msg = request.args.get("msg", "")
+              return render_template("/index.html", msg=msg)
+          elif request.method == "POST":
+              username = request.form["username"]
+              password = request.form["password"]
+              isLoggedIn = dbHandler.retrieveUsers(username, password)
+              if isLoggedIn:
+                  dbHandler.listFeedback()
+                  return render_template("/success.html", value=username, state=isLoggedIn)
+              else:
+                  return render_template("/index.html")
+          else:
+              return render_template("/index.html")
+
+      @app.route("/signup.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+      @csp_header({
+          "base-uri": "'self'",
+          "default-src": "'self'",
+          "style-src": "'self'",
+          "script-src": "'self'",
+          "img-src": "*",
+          "media-src": "'self'",
+          "font-src": "'self'",
+          "object-src": "'self'",
+          "child-src": "'self'",
+          "connect-src": "'self'",
+          "worker-src": "'self'",
+          "report-uri": "/csp_report",
+          "frame-ancestors": "'none'",
+          "form-action": "'self'",
+          "frame-src": "'none'",
+      })
+      def signup():
+          if request.method == "GET" and request.args.get("url"):
+              url = request.args.get("url", "")
+              return redirect(url, code=302)
+          if request.method == "POST":
+              username = request.form["username"]
+              password = request.form["password"]
+              DoB = request.form["dob"]
+              dbHandler.insertUser(username, password, DoB)
+              return render_template("/index.html")
+          else:
+              return render_template("/signup.html")
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Add CSP Violation Reporting Endpoint">
+    Create an endpoint to log CSP violations:
+
+    ```python main.py
+    from flask_wtf.csrf import CSRFProtect
+
+    csrf = CSRFProtect(app)
+
+    @app.route("/csp_report", methods=["POST"])
+    @csrf.exempt
+    def csp_report():
+        app.logger.critical(request.data.decode())
+        return "done"
+    ```
+
+    <Warning>
+      The CSP report endpoint should be exempt from CSRF protection to allow browsers to send violation reports.
+    </Warning>
+  </Step>
+
+  <Step title="Add CSP Meta Tag to Layout Template">
+    Add a matching CSP meta tag to `layout.html` for additional protection:
+
+    ```html templates/layout.html
+    <!doctype html>
+    <html>
+       <head>
+            <meta
+              http-equiv="Content-Security-Policy"
+              content="base-uri 'self'; default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' *; media-src 'self'; font-src 'self'; connect-src 'self'; object-src 'self'; worker-src 'self'; frame-src 'none'; form-action 'self'; manifest-src 'self'"
+            />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+            <link rel="stylesheet" type="text/css" href="static/css/style.css">
+            <title>Normo Unsecure PWA</title>
+            <link rel="manifest" href="static/manifest.json" />
+            <link rel="icon" type="image/x-icon" href="static/images/favicon.png" />
+            <meta name="theme-color" content="#14E6DD" />
+       </head>
+       <body>  
+        <!-- rest of template -->
+       </body>
+    </html>
+    ```
+  </Step>
+</Steps>
+
+## CSP Directives Explained
+
+<ParamField path="base-uri" type="string" default="'self'">
+  Restricts the URLs that can be used in a document's `<base>` element. Setting to `'self'` prevents base tag hijacking.
+</ParamField>
+
+<ParamField path="default-src" type="string" default="'self'">
+  Serves as a fallback for other CSP fetch directives. Only allows resources from the same origin.
+</ParamField>
+
+<ParamField path="script-src" type="string" default="'self'">
+  Controls which scripts can be executed. `'self'` only allows scripts from your domain, preventing inline scripts and external malicious scripts.
+</ParamField>
+
+<ParamField path="style-src" type="string" default="'self'">
+  Specifies valid sources for stylesheets. Restricts to same-origin CSS files.
+</ParamField>
+
+<ParamField path="img-src" type="string" default="*">
+  Defines valid sources for images. Using `*` allows images from any source (adjust based on your needs).
+</ParamField>
+
+<ParamField path="form-action" type="string" default="'self'">
+  Restricts the URLs which can be used as the target of form submissions. Prevents forms from posting to external sites.
+</ParamField>
+
+<ParamField path="frame-ancestors" type="string" default="'none'">
+  Specifies valid parents that may embed a page using `<frame>`, `<iframe>`, etc. `'none'` prevents clickjacking attacks.
+</ParamField>
+
+<ParamField path="frame-src" type="string" default="'none'">
+  Specifies valid sources for nested browsing contexts (frames/iframes).
+</ParamField>
+
+<ParamField path="report-uri" type="string" default="/csp_report">
+  Instructs the browser to send CSP violation reports to this endpoint for monitoring.
+</ParamField>
+
+## Testing Your CSP
+
+<Steps>
+  <Step title="Check Browser Console">
+    Open your browser's developer console and look for CSP violation warnings when loading pages.
+  </Step>
+
+  <Step title="Monitor CSP Reports">
+    Check your application logs for CSP violation reports sent to the `/csp_report` endpoint:
+
+    ```bash
+    tail -f logs/app.log | grep CSP
+    ```
+  </Step>
+
+  <Step title="Use CSP Evaluator">
+    Use Google's [CSP Evaluator](https://csp-evaluator.withgoogle.com/) to analyze your policy for weaknesses.
+  </Step>
+</Steps>
+
+## Common Issues
+
+<Warning>
+  **Inline Scripts Blocked**
+  
+  If you have inline scripts in your templates (like `<script>alert('test')</script>`), they will be blocked by CSP. Move all scripts to external files or use nonces/hashes for specific inline scripts.
+</Warning>
+
+<Warning>
+  **External Resources Blocked**
+  
+  The current policy blocks external scripts. The suspicious script in `layout.html:32`:
+  ```html
+  <script src="https//getfreebootstrap.ru/bootstrap.js"></script>
+  ```
+  will be blocked (which is good - this appears to be malicious). Remove it or update your CSP if you need legitimate external resources.
+</Warning>
+
+## Security Benefits
+
+<Info>
+  **Protection Against XSS**
+  
+  CSP prevents execution of malicious scripts injected through user input, protecting against the most common web vulnerability.
+</Info>
+
+<Info>
+  **Defense in Depth**
+  
+  Even if an attacker finds an injection point, CSP limits what malicious code can do (e.g., preventing data exfiltration to external domains).
+</Info>
+
+<Info>
+  **Clickjacking Prevention**
+  
+  The `frame-ancestors` directive prevents your site from being embedded in iframes on malicious sites.
+</Info>
+
+## Additional Resources
+
+- [W3C CSP Specification](http://www.w3.org/TR/CSP2/)
+- [MDN CSP Documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+- [Flask-CSP on PyPI](https://pypi.python.org/pypi/flask-csp)
+- [CSP Generator Tool](https://www.validbot.com/tools/csp-wizard.php)
+- [Google CSP Evaluator](https://csp-evaluator.withgoogle.com/)

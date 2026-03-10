@@ -1,0 +1,338 @@
+---
+title: 'Broken Authentication'
+description: 'Understanding authentication vulnerabilities in the Normo Unsecure PWA'
+icon: 'shield-xmark'
+---
+
+<Warning>
+  This application demonstrates critical authentication vulnerabilities for educational purposes. **Never** implement authentication this way in production.
+</Warning>
+
+## Overview
+
+Many websites require users to log in to access their data or engage with website services. More often than not, this is done using a username and password. With this information, a site will assign and send each logged-in visitor a unique session ID that serves as a key to the user's identity on the server.
+
+When these bedrock systems are "broken," threat actors can easily exploit them. This vulnerability is extremely broad in nature, with multiple attack vectors, including dictionary attacks, XSS/XFS, side-channel attacks, SQL injections, and most types of phishing.
+
+## Vulnerable Code in Normo Unsecure PWA
+
+### Authentication Flow
+
+The application's authentication logic is found in `main.py:46-67` and uses a critically flawed approach:
+
+```python main.py
+@app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+@app.route("/", methods=["POST", "GET"])
+def home():
+    # Simple Dynamic menu
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        return redirect(url, code=302)
+    # Pass message to front end
+    elif request.method == "GET":
+        msg = request.args.get("msg", "")
+        return render_template("/index.html", msg=msg)
+    elif request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        isLoggedIn = dbHandler.retrieveUsers(username, password)
+        if isLoggedIn:
+            dbHandler.listFeedback()
+            return render_template("/success.html", value=username, state=isLoggedIn)
+        else:
+            return render_template("/index.html")
+```
+
+### User Retrieval with SQL Injection
+
+The `retrieveUsers()` function in `user_management.py:17-39` combines multiple vulnerabilities:
+
+```python user_management.py
+def retrieveUsers(username, password):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+    if cur.fetchone() == None:
+        con.close()
+        return False
+    else:
+        cur.execute(f"SELECT * FROM users WHERE password = '{password}'")
+        # Plain text log of visitor count as requested by Unsecure PWA management
+        with open("visitor_log.txt", "r") as file:
+            number = int(file.read().strip())
+            number += 1
+        with open("visitor_log.txt", "w") as file:
+            file.write(str(number))
+        # Simulate response time of heavy app for testing purposes
+        time.sleep(random.randint(80, 90) / 1000)
+        if cur.fetchone() == None:
+            con.close()
+            return False
+        else:
+            con.close()
+            return True
+```
+
+## Common Authentication Vulnerabilities
+
+<Tabs>
+  <Tab title="Weak Passwords">
+    ### Weak or Common Passwords
+    
+    The application allows weak passwords, enabling dictionary brute force attacks using [common password lists](https://github.com/danielmiessler/SecLists/tree/master/Passwords).
+    
+    **Testing approach:**
+    - Try creating accounts with passwords like "password123", "admin", "12345678"
+    - Use automated tools with common password dictionaries
+  </Tab>
+  
+  <Tab title="SQL Injection">
+    ### SQL Injection in Authentication
+    
+    The `retrieveUsers()` function uses string interpolation instead of parameterized queries:
+    
+    ```python
+    cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+    cur.execute(f"SELECT * FROM users WHERE password = '{password}'")
+    ```
+    
+    **Attack vector:**
+    ```
+    username: admin' OR '1'='1
+    password: anything
+    ```
+  </Tab>
+  
+  <Tab title="Timing Attacks">
+    ### Username Enumeration via Timing
+    
+    The authentication logic checks username first, then password. Combined with the artificial delay (80-90ms), attackers can enumerate valid usernames by measuring response times.
+    
+    **Observable behavior:**
+    - Invalid username: Fast response
+    - Valid username, invalid password: Slower response (includes sleep)
+  </Tab>
+  
+  <Tab title="No Rate Limiting">
+    ### Unlimited Login Attempts
+    
+    The application has:
+    - No rate limiting on login attempts
+    - No account lockout after failed attempts
+    - No CAPTCHA or similar protections
+    - No logging of failed authentication attempts
+  </Tab>
+</Tabs>
+
+## Additional Broken Authentication Issues
+
+1. **Weak credential recovery** - Forgot-password processes can be easily brute-forced
+2. **Exposed session IDs** - Session IDs that can be calculated or brute-forced
+3. **Persistent sessions** - Session IDs not properly invalidated during logout or inactivity
+4. **No re-authentication** - Administrative actions don't require password confirmation
+5. **Inappropriate caching** - Session IDs cached in browser or proxy
+6. **Predictable tokens** - Authentication tokens that follow patterns
+
+## Penetration Testing Approaches
+
+<Steps>
+  <Step title="Test Weak Passwords">
+    Try creating new users with simple or [common passwords](https://github.com/danielmiessler/SecLists/tree/master/Passwords).
+    
+    ```bash
+    # Example with curl
+    curl -X POST http://localhost:5000/signup.html \
+      -d "username=testuser&password=password123&dob=2000-01-01"
+    ```
+  </Step>
+  
+  <Step title="Brute Force Attack">
+    Write a script or use pen-testing tools to brute force [common passwords](https://github.com/danielmiessler/SecLists/tree/master/Passwords) and [common usernames](https://github.com/danielmiessler/SecLists/tree/master/Usernames).
+    
+    ```python
+    import requests
+    
+    usernames = ['admin', 'user', 'test', 'root']
+    passwords = ['password', '123456', 'admin', 'letmein']
+    
+    for username in usernames:
+        for password in passwords:
+            response = requests.post('http://localhost:5000/', 
+                data={'username': username, 'password': password})
+            if 'success' in response.text.lower():
+                print(f"Found: {username}:{password}")
+    ```
+  </Step>
+  
+  <Step title="Test SQL Injection">
+    Try SQL injection payloads in login forms:
+    
+    ```
+    Username: admin' OR '1'='1' --
+    Password: anything
+    ```
+  </Step>
+  
+  <Step title="Test Session Persistence">
+    Log out, then try navigating to URLs that require authentication. Check if you still have access.
+  </Step>
+  
+  <Step title="Analyze Session Tokens">
+    If the application uses cookies to manage sessions, analyze them for patterns that could be reverse-engineered or brute-forced.
+  </Step>
+</Steps>
+
+## Security Countermeasures
+
+<Note>
+  Implementing proper authentication requires multiple layers of security controls.
+</Note>
+
+### 1. Enforce Strong Passwords
+
+```python
+import re
+
+def validate_password(password):
+    """
+    Enforce strong password requirements:
+    - At least 12 characters
+    - Contains uppercase and lowercase
+    - Contains numbers
+    - Contains special characters
+    """
+    if len(password) < 12:
+        return False, "Password must be at least 12 characters"
+    
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain lowercase letters"
+    
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain uppercase letters"
+    
+    if not re.search(r"\d", password):
+        return False, "Password must contain numbers"
+    
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False, "Password must contain special characters"
+    
+    return True, "Password is strong"
+```
+
+### 2. Use Parameterized Queries
+
+```python
+def retrieveUsers(username, password):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    
+    # Use parameterized queries to prevent SQL injection
+    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+    user = cur.fetchone()
+    
+    if user is None:
+        con.close()
+        return False
+    
+    # Verify hashed password (see Password Encryption page)
+    stored_hash = user[2]  # Assuming password is in column 2
+    if bcrypt.checkpw(password.encode(), stored_hash):
+        con.close()
+        return True
+    
+    con.close()
+    return False
+```
+
+### 3. Implement Rate Limiting
+
+Install and configure [Flask-Limiter](https://flask-limiter.readthedocs.io/en/stable/):
+
+```python
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
+
+@app.route("/", methods=["POST"])
+@limiter.limit("5 per minute")  # Only 5 login attempts per minute
+def home():
+    # Authentication logic here
+    pass
+```
+
+### 4. Log Failed Login Attempts
+
+```python
+import logging
+from datetime import datetime
+
+def log_failed_login(username, ip_address):
+    logging.warning(f"Failed login attempt - Username: {username}, IP: {ip_address}, Time: {datetime.now()}")
+
+@app.route("/", methods=["POST"])
+def home():
+    username = request.form["username"]
+    password = request.form["password"]
+    isLoggedIn = dbHandler.retrieveUsers(username, password)
+    
+    if not isLoggedIn:
+        log_failed_login(username, request.remote_addr)
+        # Implement lockout after N failed attempts
+    
+    # Rest of the logic...
+```
+
+### 5. Implement Secure Session Management
+
+Install and configure [Flask-Session](https://flask-session.readthedocs.io/en/latest/) to create secure, server-side session management:
+
+```python
+from flask import session
+from flask_session import Session
+import secrets
+
+app.config['SECRET_KEY'] = secrets.token_hex(32)
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+Session(app)
+
+@app.route("/", methods=["POST"])
+def home():
+    username = request.form["username"]
+    password = request.form["password"]
+    isLoggedIn = dbHandler.retrieveUsers(username, password)
+    
+    if isLoggedIn:
+        session['username'] = username
+        session['logged_in'] = True
+        return redirect('/success.html')
+```
+
+### 6. Additional Security Measures
+
+- **Two-factor authentication (2FA)** - Add an extra layer of security
+- **Security audits** - Conduct regular security testing
+- **Account lockout** - Lock accounts after multiple failed attempts
+- **Secure password recovery** - Use secure tokens with expiration
+
+## Related Vulnerabilities
+
+- [Session Management](/vulnerabilities/session-management) - Learn about session handling issues
+- [Password Encryption](/vulnerabilities/password-encryption) - Understand proper password storage
+
+## References
+
+- [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
+- [Common Password Lists](https://github.com/danielmiessler/SecLists/tree/master/Passwords)
+- [Flask-Limiter Documentation](https://flask-limiter.readthedocs.io/en/stable/)
+- [Flask-Session Documentation](https://flask-session.readthedocs.io/en/latest/)

@@ -1,0 +1,333 @@
+---
+title: Application Architecture
+description: Understanding the structure and components of the Normo Unsecure PWA
+icon: sitemap
+---
+
+## Overview
+
+The Normo Unsecure PWA is a Flask-based progressive web application with an intentionally vulnerable architecture designed for educational security analysis. Understanding its structure is essential for identifying and exploiting security vulnerabilities.
+
+## Technology Stack
+
+<CardGroup cols={2}>
+  <Card title="Backend Framework" icon="python">
+    **Flask** - Python micro web framework
+  </Card>
+  <Card title="Database" icon="database">
+    **SQLite** - Lightweight SQL database
+  </Card>
+  <Card title="Frontend" icon="browser">
+    **HTML/CSS/JavaScript** - Standard web technologies
+  </Card>
+  <Card title="PWA Features" icon="mobile">
+    **Service Worker & Manifest** - Progressive Web App capabilities
+  </Card>
+</CardGroup>
+
+## Application Structure
+
+The application follows a simple Flask architecture with the following key components:
+
+```bash Project Structure
+Normo_Unsecure_PWA/
+├── main.py                    # Flask application entry point
+├── user_management.py         # Database operations
+├── requirements.txt           # Python dependencies
+├── database_files/
+│   └── database.db           # SQLite database
+├── templates/                # Jinja2 HTML templates
+│   ├── layout.html          # Base template
+│   ├── index.html           # Login page
+│   ├── signup.html          # Registration page
+│   ├── success.html         # Dashboard/feedback page
+│   └── partials/
+│       └── success_feedback.html  # Dynamically generated feedback
+├── static/                   # Static assets
+│   ├── css/                 # Stylesheets
+│   ├── js/                  # JavaScript files
+│   ├── icons/               # PWA icons
+│   ├── images/              # Image assets
+│   └── manifest.json        # PWA manifest
+└── .student_resources/       # Educational materials
+```
+
+## Core Components
+
+### 1. Flask Application (`main.py`)
+
+The main Flask application defines three primary routes with multiple security vulnerabilities:
+
+```python main.py lines
+from flask import Flask, render_template, request, redirect
+from flask_cors import CORS
+import user_management as dbHandler
+
+app = Flask(__name__)
+CORS(app)  # ⚠️ Allows all origins - CSRF vulnerability
+
+@app.route("/", methods=["POST", "GET"])
+@app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+def home():
+    # ⚠️ Open redirect vulnerability
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        return redirect(url, code=302)
+    # Login processing
+    elif request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        isLoggedIn = dbHandler.retrieveUsers(username, password)
+        if isLoggedIn:
+            return render_template("/success.html", value=username, state=isLoggedIn)
+        else:
+            return render_template("/index.html")
+    else:
+        msg = request.args.get("msg", "")
+        return render_template("/index.html", msg=msg)
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
+```
+
+**Key Routes:**
+- `POST /index.html` - User authentication (main.py:46-67)
+- `POST /signup.html` - User registration (main.py:31-43)
+- `POST /success.html` - Feedback submission (main.py:16-28)
+
+<Warning>
+All routes accept multiple HTTP methods (GET, POST, PUT, PATCH, DELETE) without proper validation, creating additional attack vectors.
+</Warning>
+
+### 2. Database Layer (`user_management.py`)
+
+The database module handles all data operations with critical security flaws:
+
+```python user_management.py lines
+import sqlite3 as sql
+
+def insertUser(username, password, DoB):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    # ✅ Secure: Uses parameterized query
+    cur.execute(
+        "INSERT INTO users (username,password,dateOfBirth) VALUES (?,?,?)",
+        (username, password, DoB)
+    )
+    con.commit()
+    con.close()
+
+def retrieveUsers(username, password):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    # ⚠️ SQL Injection vulnerability
+    cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+    if cur.fetchone() == None:
+        con.close()
+        return False
+    else:
+        # ⚠️ SQL Injection vulnerability
+        cur.execute(f"SELECT * FROM users WHERE password = '{password}'")
+        # ⚠️ Side-channel timing attack vulnerability
+        time.sleep(random.randint(80, 90) / 1000)
+        if cur.fetchone() == None:
+            con.close()
+            return False
+        else:
+            con.close()
+            return True
+
+def insertFeedback(feedback):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    # ⚠️ SQL Injection vulnerability
+    cur.execute(f"INSERT INTO feedback (feedback) VALUES ('{feedback}')")
+    con.commit()
+    con.close()
+
+def listFeedback():
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    data = cur.execute("SELECT * FROM feedback").fetchall()
+    con.close()
+    # ⚠️ XSS vulnerability - writes unescaped user input to HTML
+    f = open("templates/partials/success_feedback.html", "w")
+    for row in data:
+        f.write("<p>\n")
+        f.write(f"{row[1]}\n")
+        f.write("</p>\n")
+    f.close()
+```
+
+**Database Operations:**
+- `insertUser()` - User registration (✅ secure)
+- `retrieveUsers()` - Authentication (⚠️ SQL injection, timing attack)
+- `insertFeedback()` - Feedback submission (⚠️ SQL injection)
+- `listFeedback()` - Display feedback (⚠️ XSS vulnerability)
+
+### 3. Database Schema
+
+The SQLite database contains two simple tables:
+
+<Tabs>
+  <Tab title="users table">
+```sql
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    password TEXT NOT NULL,        -- ⚠️ Stored in plaintext
+    dateOfBirth TEXT
+);
+```
+  </Tab>
+  <Tab title="feedback table">
+```sql
+CREATE TABLE feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    feedback TEXT NOT NULL
+);
+```
+  </Tab>
+</Tabs>
+
+<Warning>
+Passwords are stored in **plaintext** with no hashing or encryption. This is a critical security vulnerability.
+</Warning>
+
+### 4. Templates & Frontend
+
+The application uses Jinja2 templates with minimal client-side validation:
+
+**Template Structure:**
+- `layout.html` - Base template with PWA metadata
+- `index.html` - Login form (no CSRF protection, minimal validation)
+- `signup.html` - Registration form (no input validation)
+- `success.html` - User dashboard with feedback display
+
+**Static Assets:**
+- `manifest.json` - PWA configuration
+- CSS/JavaScript - Basic styling and interactivity
+- Icons - PWA installable app icons
+
+<Info>
+The app is a Progressive Web App (PWA) that can be installed on mobile devices, but this doesn't add any security - all the backend vulnerabilities remain.
+</Info>
+
+## Configuration & Deployment
+
+### Flask Configuration
+
+```python main.py:70-73
+app.config["TEMPLATES_AUTO_RELOAD"] = True  # ⚠️ Debug mode
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # ⚠️ Disable caching
+app.run(debug=True, host="0.0.0.0", port=5000)  # ⚠️ Multiple issues
+```
+
+**Security Issues:**
+- `debug=True` - Exposes detailed error messages and stack traces
+- `host="0.0.0.0"` - Accepts connections from any network interface
+- No secret key configured for sessions
+- No HTTPS/SSL configuration
+- No rate limiting or request throttling
+
+### Dependencies
+
+```txt requirements.txt
+Flask              # Web framework
+Flask_cors         # CORS handling (too permissive)
+Flask-csp          # Content Security Policy (not implemented)
+Flask-WTF          # CSRF protection (not implemented)
+Flask-Limiter      # Rate limiting (not implemented)
+qrcode             # QR code generation for 2FA (not implemented)
+pyotp              # TOTP for 2FA (not implemented)
+bcrypt             # Password hashing (not implemented)
+requests           # HTTP library
+matplotlib         # Data visualization
+rich               # Terminal formatting
+```
+
+<Note>
+Many security-focused dependencies are included in `requirements.txt` but **not actually used** in the code. This is intentional - students must implement these security measures themselves.
+</Note>
+
+## Request Flow
+
+<Steps>
+  <Step title="User Authentication Flow">
+    1. User submits credentials via POST to `/index.html`
+    2. Flask receives form data (username, password)
+    3. `dbHandler.retrieveUsers()` queries database with SQL injection vulnerability
+    4. If credentials match, user is "authenticated" (no session created)
+    5. User is redirected to `/success.html` with username passed in template
+  </Step>
+  <Step title="Feedback Submission Flow">
+    1. Authenticated user submits feedback via POST to `/success.html`
+    2. Flask receives form data (feedback)
+    3. `dbHandler.insertFeedback()` inserts feedback with SQL injection vulnerability
+    4. `dbHandler.listFeedback()` regenerates HTML with XSS vulnerability
+    5. Feedback displayed on success page without sanitization
+  </Step>
+</Steps>
+
+## Attack Surface Analysis
+
+The application has multiple attack vectors across all layers:
+
+<AccordionGroup>
+  <Accordion title="Network Layer Attacks">
+    - **No HTTPS**: All traffic is HTTP (port 5000)
+    - **CORS misconfiguration**: Accepts requests from any origin
+    - **No rate limiting**: Vulnerable to brute force attacks
+    - **Open to all interfaces**: `host="0.0.0.0"` exposes to network
+  </Accordion>
+  <Accordion title="Application Layer Attacks">
+    - **SQL Injection**: 3 vulnerable queries in `user_management.py`
+    - **XSS**: Unescaped user input in `listFeedback()`
+    - **CSRF**: No token validation on any forms
+    - **Open Redirect**: 3 unvalidated redirects in `main.py`
+    - **No input validation**: All form inputs accepted without checks
+  </Accordion>
+  <Accordion title="Authentication & Session Attacks">
+    - **Plaintext passwords**: No hashing or encryption
+    - **No session management**: Authentication state not maintained
+    - **No logout functionality**: Users cannot terminate sessions
+    - **Timing attacks**: Variable response times reveal valid usernames
+    - **No 2FA**: Single-factor authentication only
+  </Accordion>
+  <Accordion title="Data Protection Attacks">
+    - **No encryption at rest**: Database unencrypted
+    - **No encryption in transit**: HTTP instead of HTTPS
+    - **Debug mode enabled**: Stack traces exposed to attackers
+    - **File write vulnerability**: `listFeedback()` writes arbitrary content
+  </Accordion>
+</AccordionGroup>
+
+## Architectural Anti-Patterns
+
+This application intentionally violates secure architecture principles:
+
+| Anti-Pattern | Location | Impact |
+|--------------|----------|--------|
+| **No separation of concerns** | All business logic in routes | Hard to secure, test, and maintain |
+| **Direct database access** | Routes call DB functions directly | No abstraction or validation layer |
+| **No input validation layer** | Throughout application | Every endpoint is vulnerable |
+| **No authentication middleware** | No session management | Anyone can access "protected" pages |
+| **No error handling** | No try-except blocks | Crashes expose internal details |
+| **Mixing GET and POST** | All routes accept all methods | CSRF and unintended operations |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Security Testing" icon="magnifying-glass" href="/testing-approaches">
+    Learn how to test this architecture for vulnerabilities
+  </Card>
+  <Card title="Security by Design" icon="shield" href="/security-by-design">
+    Understand how this app violates security principles
+  </Card>
+  <Card title="Vulnerabilities" icon="bug" href="/vulnerabilities/sql-injection">
+    Explore specific vulnerability documentation
+  </Card>
+  <Card title="Mitigation Guides" icon="wrench" href="/resources/flask-safe-api">
+    Learn how to fix these architectural flaws
+  </Card>
+</CardGroup>

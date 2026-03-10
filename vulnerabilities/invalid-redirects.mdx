@@ -1,0 +1,463 @@
+---
+title: 'Invalid Forwards & Redirects'
+description: 'Understanding open redirect vulnerabilities and unvalidated URL parameters'
+icon: 'arrow-turn-down-right'
+---
+
+## Overview
+
+Invalid (or unvalidated) forwards and redirects are a form of user-controlled input in which a web application accepts untrusted input that could cause the web application to redirect. Because the domain name in the modified link is identical to the trusted domain name, phishing attempts may appear more trustworthy.
+
+<Warning>
+This vulnerability is often combined with CSRF, man-in-the-middle attacks, or website spoofing as a more complex threat vector.
+</Warning>
+
+## How It Works
+
+Consider this malicious URL:
+
+```text
+https://www.trustedwebsite.com/examples/example.php?url=http://www.malicious.com
+```
+
+### URL Anatomy
+
+| Protocol | Subdomain | Domain | Path | Endpoint | Parameters |
+| -------- | --------- | ------------------ | -------- | ------------ | ---------------------------- |
+| https | www | trustedwebsite.com | examples | example.html | url=http://www.malicious.com |
+
+Users trust the URL because it starts with a legitimate domain (`trustedwebsite.com`), but the application redirects them to the malicious site specified in the `url` parameter.
+
+## Vulnerable Code Examples
+
+The Unsecure PWA contains three open redirect vulnerabilities in `main.py`:
+
+<CodeGroup>
+```python main.py:19 - Success Page Redirect
+@app.route("/success.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+def addFeedback():
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        return redirect(url, code=302)  # VULNERABLE: No validation!
+    if request.method == "POST":
+        feedback = request.form["feedback"]
+        dbHandler.insertFeedback(feedback)
+        dbHandler.listFeedback()
+        return render_template("/success.html", state=True, value="Back")
+    else:
+        dbHandler.listFeedback()
+        return render_template("/success.html", state=True, value="Back")
+```
+
+```python main.py:34 - Signup Page Redirect
+@app.route("/signup.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+def signup():
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        return redirect(url, code=302)  # VULNERABLE: No validation!
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        DoB = request.form["dob"]
+        dbHandler.insertUser(username, password, DoB)
+        return render_template("/index.html")
+    else:
+        return render_template("/signup.html")
+```
+
+```python main.py:51 - Home Page Redirect
+@app.route("/index.html", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+@app.route("/", methods=["POST", "GET"])
+def home():
+    # Simple Dynamic menu
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        return redirect(url, code=302)  # VULNERABLE: No validation!
+    # Pass message to front end
+    elif request.method == "GET":
+        msg = request.args.get("msg", "")
+        return render_template("/index.html", msg=msg)
+    elif request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        isLoggedIn = dbHandler.retrieveUsers(username, password)
+        if isLoggedIn:
+            dbHandler.listFeedback()
+            return render_template("/success.html", value=username, state=isLoggedIn)
+        else:
+            return render_template("/index.html")
+    else:
+        return render_template("/index.html")
+```
+</CodeGroup>
+
+<Warning>
+All three endpoints accept a `url` parameter and redirect without any validation, allowing attackers to redirect users to any arbitrary domain.
+</Warning>
+
+## Attack Scenarios
+
+### Phishing Attack
+
+<Steps>
+  <Step title="Craft Malicious Link">
+    Attacker creates a link that appears legitimate:
+    
+    ```text
+    https://trustedbank.com/login?url=https://evil-phishing-site.com/fake-login
+    ```
+  </Step>
+  
+  <Step title="Distribute via Phishing">
+    Send link via email, SMS, or social media:
+    
+    ```text
+    Subject: Urgent Security Alert
+    
+    Your account requires immediate verification.
+    Click here: https://trustedbank.com/login?url=https://attacker.com
+    ```
+  </Step>
+  
+  <Step title="User Clicks Link">
+    User sees trusted domain and clicks the link
+  </Step>
+  
+  <Step title="Automatic Redirect">
+    Application redirects user to attacker's site without warning
+  </Step>
+  
+  <Step title="Credential Theft">
+    User enters credentials on fake site thinking it's legitimate
+  </Step>
+</Steps>
+
+### Combined Attack Vectors
+
+<Accordion title="Advanced Exploitation Techniques">
+**1. CSRF + Open Redirect**
+```html
+<img src="https://trustedsite.com/logout?url=https://attacker.com/steal-session">
+```
+
+**2. OAuth Redirect Manipulation**
+```text
+https://trustedsite.com/oauth/callback?redirect_uri=https://attacker.com
+```
+
+**3. Header Injection**
+```text
+https://trustedsite.com/redirect?url=https://attacker.com%0d%0aSet-Cookie:sessionid=malicious
+```
+
+**4. JavaScript Protocol Handler**
+```text
+https://trustedsite.com/redirect?url=javascript:alert(document.cookie)
+```
+</Accordion>
+
+## Penetration Testing
+
+<Steps>
+  <Step title="Identify Redirect Parameters">
+    Look for URL parameters that might control redirects:
+    - `url`, `redirect`, `next`, `return`, `continue`
+    - `target`, `dest`, `destination`, `rurl`
+    - `page`, `view`, `goto`, `out`
+  </Step>
+  
+  <Step title="Test External Redirects">
+    Test if the application accepts external URLs:
+    
+    ```bash
+    # Test various external domains
+    curl -I "http://127.0.0.1:5000/?url=http://www.google.com"
+    curl -I "http://127.0.0.1:5000/?url=https://evil.com"
+    
+    # Check for 302/301 redirect to external site
+    ```
+  </Step>
+  
+  <Step title="Test Bypass Techniques">
+    Try various encoding and bypass methods:
+    
+    ```text
+    # URL encoding
+    ?url=http%3A%2F%2Fevil.com
+    
+    # Double encoding
+    ?url=http%253A%252F%252Fevil.com
+    
+    # Protocol-relative URL
+    ?url=//evil.com
+    
+    # @ symbol bypass
+    ?url=http://trustedsite.com@evil.com
+    
+    # Backslash bypass
+    ?url=http://trustedsite.com\\evil.com
+    ```
+  </Step>
+  
+  <Step title="Document Findings">
+    Record which parameters are vulnerable and what bypass techniques work
+  </Step>
+</Steps>
+
+## Secure Implementation
+
+### Whitelist Approach (Recommended)
+
+<CodeGroup>
+```python Flask - Whitelist Domain Validation
+from urllib.parse import urlparse
+from flask import Flask, request, redirect, abort
+
+app = Flask(__name__)
+
+# Whitelist of allowed redirect domains
+ALLOWED_DOMAINS = [
+    'trustedsite.com',
+    'www.trustedsite.com',
+    'api.trustedsite.com'
+]
+
+# Whitelist of allowed internal paths
+ALLOWED_PATHS = [
+    '/success.html',
+    '/index.html',
+    '/profile',
+    '/dashboard'
+]
+
+def is_safe_url(target):
+    """Validate redirect URL is safe"""
+    if not target:
+        return False
+    
+    # Parse the URL
+    parsed = urlparse(target)
+    
+    # If no scheme or netloc, it's a relative URL - validate path
+    if not parsed.netloc and not parsed.scheme:
+        return parsed.path in ALLOWED_PATHS
+    
+    # For absolute URLs, check if domain is whitelisted
+    if parsed.netloc in ALLOWED_DOMAINS and parsed.scheme in ['http', 'https']:
+        return True
+    
+    return False
+
+@app.route("/success.html", methods=["GET"])
+def addFeedback():
+    if request.method == "GET" and request.args.get("url"):
+        url = request.args.get("url", "")
+        
+        # SECURE: Validate before redirecting
+        if is_safe_url(url):
+            return redirect(url, code=302)
+        else:
+            abort(400, "Invalid redirect URL")
+    
+    return render_template("/success.html", state=True, value="Back")
+```
+
+```javascript Express.js - Whitelist Validation
+const express = require('express');
+const url = require('url');
+const app = express();
+
+const ALLOWED_DOMAINS = [
+  'trustedsite.com',
+  'www.trustedsite.com'
+];
+
+const ALLOWED_PATHS = [
+  '/success',
+  '/dashboard',
+  '/profile'
+];
+
+function isSafeUrl(targetUrl) {
+  if (!targetUrl) return false;
+  
+  const parsed = url.parse(targetUrl);
+  
+  // Relative URL - check path
+  if (!parsed.host && !parsed.protocol) {
+    return ALLOWED_PATHS.includes(parsed.pathname);
+  }
+  
+  // Absolute URL - check domain
+  if (ALLOWED_DOMAINS.includes(parsed.host) && 
+      ['http:', 'https:'].includes(parsed.protocol)) {
+    return true;
+  }
+  
+  return false;
+}
+
+app.get('/redirect', (req, res) => {
+  const redirectUrl = req.query.url;
+  
+  if (isSafeUrl(redirectUrl)) {
+    res.redirect(redirectUrl);
+  } else {
+    res.status(400).send('Invalid redirect URL');
+  }
+});
+```
+</CodeGroup>
+
+### Input Validation Approach
+
+<CodeGroup>
+```python Regular Expression Validation
+import re
+from flask import abort, redirect
+
+def validate_redirect_url(url):
+    """Validate URL using regex patterns"""
+    # Only allow relative paths starting with /
+    relative_pattern = r'^/[a-zA-Z0-9/_-]+\.html$'
+    
+    # Or specific domain pattern
+    domain_pattern = r'^https://www\.trustedsite\.com/[a-zA-Z0-9/_-]+$'
+    
+    if re.match(relative_pattern, url) or re.match(domain_pattern, url):
+        return True
+    return False
+
+@app.route("/redirect")
+def safe_redirect():
+    url = request.args.get("url", "")
+    
+    if validate_redirect_url(url):
+        return redirect(url)
+    else:
+        abort(400, "Invalid URL format")
+```
+
+```python Explicit Path Declaration
+from flask import redirect, url_for
+
+# Define allowed redirect endpoints explicitly
+REDIRECT_MAP = {
+    'success': 'addFeedback',
+    'home': 'home',
+    'signup': 'signup',
+    'profile': 'user_profile'
+}
+
+@app.route("/navigate")
+def navigate():
+    destination = request.args.get("dest", "")
+    
+    # Only allow predefined destinations
+    if destination in REDIRECT_MAP:
+        return redirect(url_for(REDIRECT_MAP[destination]))
+    else:
+        return redirect(url_for('home'))
+```
+</CodeGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Never Trust User Input">
+    Treat all redirect parameters as untrusted user input that must be validated
+  </Step>
+  
+  <Step title="Use Whitelists">
+    Maintain explicit whitelists of allowed domains and paths - never use blacklists
+  </Step>
+  
+  <Step title="Prefer Indirect References">
+    Use mapped values instead of direct URLs:
+    ```python
+    # Instead of: ?url=/success.html
+    # Use: ?page=success
+    PAGES = {'success': '/success.html', 'home': '/index.html'}
+    ```
+  </Step>
+  
+  <Step title="Validate Protocol and Domain">
+    Explicitly check both protocol (http/https) and domain match your whitelist
+  </Step>
+  
+  <Step title="Warn Users">
+    For legitimate external redirects, show a warning page:
+    ```text
+    "You are leaving trustedsite.com. Continue to example.com?"
+    ```
+  </Step>
+</Steps>
+
+## Additional Security Measures
+
+<Accordion title="Defense in Depth">
+1. **Code Review**: Audit all redirect/forward functionality
+2. **Regular Expression Validation**: Define strict URL format requirements
+3. **Avoid URL Parameters**: Use POST data or session variables when possible
+4. **Content Security Policy**: Implement CSP headers to limit redirect destinations
+5. **User Education**: Train users to verify URLs before clicking
+6. **Update Backend Languages**: Early versions of ASP.NET and other frameworks have known vulnerabilities
+</Accordion>
+
+## Testing Checklist
+
+```markdown
+- [ ] Identify all redirect/forward parameters
+- [ ] Test external domain redirects
+- [ ] Test protocol handlers (javascript:, data:, file:)
+- [ ] Test URL encoding bypass
+- [ ] Test double encoding
+- [ ] Test @ symbol bypass
+- [ ] Test backslash bypass
+- [ ] Test protocol-relative URLs (//evil.com)
+- [ ] Test header injection
+- [ ] Verify whitelist enforcement
+- [ ] Check error handling for invalid URLs
+```
+
+## Common Mistakes
+
+<Warning>
+**DO NOT** implement these vulnerable patterns:
+</Warning>
+
+<CodeGroup>
+```python ❌ Blacklist Approach (Insecure)
+# DON'T DO THIS - easily bypassed
+blocked_domains = ['evil.com', 'malicious.net']
+if any(domain in url for domain in blocked_domains):
+    abort(400)
+return redirect(url)  # Still vulnerable!
+```
+
+```python ❌ Incomplete Validation (Insecure)
+# DON'T DO THIS - can be bypassed with @
+if url.startswith('https://trustedsite.com'):
+    return redirect(url)
+# Bypassed with: https://trustedsite.com@evil.com
+```
+
+```python ❌ Client-Side Only Validation (Insecure)
+# DON'T DO THIS - client-side checks can be bypassed
+# JavaScript validation without server-side enforcement
+```
+</CodeGroup>
+
+## Related Vulnerabilities
+
+- Cross-Site Request Forgery (CSRF)
+- Cross-Site Scripting (XSS)
+- Server-Side Request Forgery (SSRF)
+- OAuth redirect URI manipulation
+- HTTP Header Injection
+
+## References
+
+- [OWASP Unvalidated Redirects and Forwards](https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/04-Testing_for_Client-side_URL_Redirect)
+- [CWE-601: URL Redirection to Untrusted Site](https://cwe.mitre.org/data/definitions/601.html)
+- [PortSwigger: Open Redirection](https://portswigger.net/kb/issues/00500100_open-redirection-reflected)

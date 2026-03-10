@@ -1,0 +1,237 @@
+---
+title: 'SQL Injection'
+description: 'Learn how to identify, test, and fix SQL injection vulnerabilities in the Normo Unsecure PWA'
+icon: 'database'
+---
+
+## What is SQL Injection?
+
+A SQL injection attack consists of inserting or "injecting" SQL code via the input data from the client to the application. A successful SQL injection exploit can read sensitive data from the database and modify database data (Insert/Update/Delete). SQL injection attacks are a type of injection attack in which SQL commands are injected into data-plane input to affect the execution of predefined SQL commands.
+
+<Warning>
+  SQL injection is one of the most critical web application vulnerabilities. It can lead to complete database compromise, data theft, and unauthorized access.
+</Warning>
+
+## Vulnerable Code in Normo Unsecure PWA
+
+The application contains **three SQL injection vulnerabilities** in `user_management.py`:
+
+### Vulnerability 1: Username Check (Line 20)
+
+```python user_management.py
+cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+```
+
+This line uses string formatting to construct the SQL query, allowing attackers to inject malicious SQL code through the username parameter.
+
+### Vulnerability 2: Password Check (Line 25)
+
+```python user_management.py
+cur.execute(f"SELECT * FROM users WHERE password = '{password}'")
+```
+
+Similar to the username check, the password parameter is directly interpolated into the SQL query without sanitization.
+
+### Vulnerability 3: Feedback Insertion (Line 45)
+
+```python user_management.py
+cur.execute(f"INSERT INTO feedback (feedback) VALUES ('{feedback}')")
+```
+
+User-submitted feedback is directly inserted into the SQL query, creating another injection point.
+
+## How to Test for SQL Injection
+
+<Steps>
+  <Step title="Test with OR 1=1">
+    In the login form, try entering these values:
+    - Username: `105 OR 1=1`
+    - Password: `105 OR 1=1`
+    
+    This attempts to make the SQL query always evaluate to true:
+    ```sql
+    SELECT * FROM users WHERE username = '105' OR 1=1 AND password = '105' OR 1=1;
+    ```
+  </Step>
+
+  <Step title="Test with Quote Injection">
+    Try these SQL injection patterns:
+    - `" OR ""="`
+    - `' OR '1'='1`
+    
+    You may need to try different combinations of `'` and `"` to ensure the backend SQL query constructs are syntactically correct.
+  </Step>
+
+  <Step title="Test for Destructive Operations">
+    <Warning>Only test in controlled environments!</Warning>
+    
+    Try injection that could drop tables:
+    - `105; DROP TABLE users`
+  </Step>
+
+  <Step title="Look for Runtime Errors">
+    Runtime errors are a sign that the vulnerability can be exploited. If you see SQL syntax errors in the application response, the input is being processed unsafely.
+  </Step>
+</Steps>
+
+## Exploitation Examples
+
+<Accordion title="Example 1: Bypassing Authentication">
+  **Input:**
+  - Username: `admin' --`
+  - Password: `anything`
+
+  **Resulting Query:**
+  ```sql
+  SELECT * FROM users WHERE username = 'admin' --' AND password = 'anything'
+  ```
+
+  The `--` comments out the rest of the query, bypassing the password check entirely.
+</Accordion>
+
+<Accordion title="Example 2: Extracting All User Data">
+  **Input:**
+  - Username: `' OR '1'='1`
+  - Password: `' OR '1'='1`
+
+  **Resulting Query:**
+  ```sql
+  SELECT * FROM users WHERE username = '' OR '1'='1' AND password = '' OR '1'='1'
+  ```
+
+  This returns all users in the database since the condition is always true.
+</Accordion>
+
+<Accordion title="Example 3: Injecting Malicious Feedback">
+  **Input in feedback form:**
+  ```
+  test'); DROP TABLE users; --
+  ```
+
+  **Resulting Query:**
+  ```sql
+  INSERT INTO feedback (feedback) VALUES ('test'); DROP TABLE users; --')
+  ```
+
+  This attempts to delete the entire users table after inserting the feedback.
+</Accordion>
+
+## How to Fix SQL Injection
+
+<Info>
+  The key to preventing SQL injection is to **never concatenate user input directly into SQL queries**. Always use parameterized queries or prepared statements.
+</Info>
+
+### Secure Implementation
+
+Here's how to fix each vulnerable function:
+
+<CodeGroup>
+
+```python Secure Username/Password Check
+def retrieveUsers(username, password):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    
+    # Use parameterized queries with ? placeholders
+    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+    if cur.fetchone() == None:
+        con.close()
+        return False
+    else:
+        cur.execute("SELECT * FROM users WHERE password = ?", (password,))
+        if cur.fetchone() == None:
+            con.close()
+            return False
+        else:
+            con.close()
+            return True
+```
+
+```python Secure Feedback Insertion
+def insertFeedback(feedback):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    
+    # Use parameterized query instead of f-string
+    cur.execute("INSERT INTO feedback (feedback) VALUES (?)", (feedback,))
+    con.commit()
+    con.close()
+```
+
+```python Already Secure: insertUser Function
+# This function is already secure and serves as a good example
+def insertUser(username, password, DoB):
+    con = sql.connect("database_files/database.db")
+    cur = con.cursor()
+    cur.execute(
+        "INSERT INTO users (username,password,dateOfBirth) VALUES (?,?,?)",
+        (username, password, DoB),
+    )
+    con.commit()
+    con.close()
+```
+
+</CodeGroup>
+
+## Countermeasures
+
+<Steps>
+  <Step title="Use Parameterized Queries">
+    **Never** construct queries with concatenation or string formatting:
+    ```python
+    # WRONG
+    cur.execute(f"SELECT * FROM users WHERE username = '{username}'")
+    
+    # CORRECT
+    cur.execute('SELECT * FROM users WHERE username = ?', (username,))
+    ```
+  </Step>
+
+  <Step title="Implement Defensive Data Handling">
+    Validate and sanitize all user input before processing:
+    - Whitelist allowed characters
+    - Enforce length limits
+    - Validate data types
+  </Step>
+
+  <Step title="Require Authentication">
+    Require authentication before accepting any form of input that interacts with the database.
+  </Step>
+
+  <Step title="Use a Secure API Layer">
+    Implement an API with built-in security as the interface to the SQL database. Modern frameworks like Flask with SQLAlchemy provide secure database abstractions.
+  </Step>
+
+  <Step title="Regular Code Reviews">
+    Conduct regular code reviews specifically looking for SQL injection vulnerabilities. Search for:
+    - f-strings with database queries
+    - String concatenation in SQL statements
+    - Direct user input in queries
+  </Step>
+
+  <Step title="Additional Security Measures">
+    - Update backend languages (some PHP versions are particularly vulnerable)
+    - Salt database table names with random strings
+    - Implement principle of least privilege for database users
+    - Use Web Application Firewalls (WAF) as an additional layer
+  </Step>
+</Steps>
+
+## References
+
+<Card title="W3Schools SQL Injection Examples" icon="graduation-cap" href="https://www.w3schools.com/sql/sql_injection.asp">
+  Comprehensive examples of SQL injection attacks with explanations
+</Card>
+
+## File Locations
+
+<ParamField path="user_management.py" type="file">
+  **Line 20**: Vulnerable username check with f-string interpolation
+  
+  **Line 25**: Vulnerable password check with f-string interpolation
+  
+  **Line 45**: Vulnerable feedback insertion with f-string interpolation
+  
+  **Lines 9-11**: Secure example using parameterized queries (insertUser function)
+</ParamField>

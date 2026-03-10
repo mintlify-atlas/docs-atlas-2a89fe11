@@ -1,0 +1,102 @@
+---
+title: Introduction
+description: An intentionally vulnerable progressive web app designed for students to learn web security testing and mitigation techniques.
+---
+
+<Warning>
+**SECURITY DISCLAIMER**
+
+This progressive web app has been designed with a range of security vulnerabilities. The app has been specifically designed for students studying the [NESA HSC Software Engineering Course](https://curriculum.nsw.edu.au/learning-areas/tas/software-engineering-11-12-2022/content/n12/fa039e749d). **The app is NOT secure and should only be used in a sandbox environment.**
+</Warning>
+
+## Welcome to Normo Unsecure PWA
+
+Your client, "Normo Unsecure PWA Company", has engaged you as a software engineering security specialist to provide expert advice on the security and privacy of their application. This progressive web app is currently in the testing and debugging phase of the software development lifecycle.
+
+## Your Mission
+
+Run a range of security tests and scans along with white/grey/black box analysis of the application and source code to identify as many security and privacy vulnerabilities as possible.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get the app running in a sandbox environment
+  </Card>
+  <Card title="Vulnerabilities" icon="bug" href="/vulnerabilities/sql-injection">
+    Explore documented security vulnerabilities
+  </Card>
+  <Card title="Testing Approaches" icon="magnifying-glass" href="/testing-approaches">
+    Learn security testing methodologies
+  </Card>
+  <Card title="Mitigation Guides" icon="shield" href="/resources/flask-safe-api">
+    Implement security fixes and patches
+  </Card>
+</CardGroup>
+
+## Learning Objectives
+
+<Steps>
+  <Step title="Security Analysis">
+    Conduct comprehensive security testing using white-box, grey-box, and black-box approaches to identify vulnerabilities in the application.
+  </Step>
+  <Step title="Vulnerability Assessment">
+    Document discovered security and privacy vulnerabilities with impact assessments and exploitation techniques.
+  </Step>
+  <Step title="Secure Development">
+    Design and implement security patches using HTML, CSS, JavaScript, Python, SQL, and JSON to remediate identified vulnerabilities.
+  </Step>
+  <Step title="Professional Reporting">
+    Prepare professionally written security reports that include technical analysis, out-of-scope issues, and recommendations for security-by-design approaches.
+  </Step>
+</Steps>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="16+ Vulnerabilities" icon="shield-exclamation">
+    Intentionally vulnerable Flask PWA with documented security flaws including SQL injection, XSS, CSRF, and more
+  </Card>
+  <Card title="Educational Resources" icon="book-open">
+    Comprehensive student resources aligned with NESA HSC Software Engineering curriculum
+  </Card>
+  <Card title="Testing Tools" icon="wrench">
+    Support for SAST, DAST, network scanning, and penetration testing in safe sandbox environments
+  </Card>
+  <Card title="Mitigation Examples" icon="code">
+    Real-world code examples showing both vulnerable and secure implementations
+  </Card>
+</CardGroup>
+
+## What You'll Learn
+
+This platform provides hands-on experience with:
+
+- **Injection Attacks**: SQL injection, cross-site scripting (XSS), cross-site request forgery (CSRF)
+- **Authentication Flaws**: Broken authentication, weak session management, password encryption issues
+- **Data Protection**: Defensive data handling, SSL/TLS encryption, two-factor authentication
+- **Advanced Attacks**: Cross-frame scripting (XFS), race conditions, file attacks, invalid redirects
+- **Security Policies**: Content Security Policy (CSP), secure form attributes
+
+## Required Report Components
+
+When you complete your security analysis, your report should include:
+
+1. **Technical Approach**: Overview of your security testing methodology
+2. **Out-of-Scope Issues**: Privacy and security issues that cannot be mitigated through technical engineering solutions or must be tested in production
+3. **Vulnerability Documentation**: All discovered security or privacy vulnerabilities with impact assessments
+4. **Recommendations**: Security and privacy by design approach recommendations
+5. **Implementation**: Code patches and web content changes to remediate each vulnerability
+
+<Note>
+The [Secure Architecture Sandbox Testing Environment](https://github.com/TempeHS/Secure_Architecture_Sandbox_Testing_Environment) has been specifically designed for sandbox testing in an authentic multi-layer isolation and containerised architecture that produces SAST, DAST, Network and Penetration Testing reports.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deploy the App" icon="play" href="/quickstart">
+    Set up the vulnerable app in a safe sandbox environment
+  </Card>
+  <Card title="Understand the Architecture" icon="sitemap" href="/architecture">
+    Learn how the Flask PWA is structured
+  </Card>
+</CardGroup>

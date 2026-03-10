@@ -1,0 +1,393 @@
+---
+title: 'File Attacks & Side-Channel Attacks'
+description: 'Learn about malicious file attacks and side-channel timing vulnerabilities'
+icon: 'file-shield'
+---
+
+## File Attacks
+
+A file attack is an attack where threat actors use certain file types, usually `*.DOCX`, `*.XLSX`, or `*.PDF`, designed to entice users to open the document or follow a malicious link in a document. If the file is embedded with malicious code, the code will be executed when the document is opened.
+
+<Warning>
+Macro-enabled files (`.xlsm`, `.docm`) are particularly dangerous as they can execute arbitrary code when opened, potentially installing keyloggers or other malware.
+</Warning>
+
+### Attack Example: Malicious Email Campaign
+
+Threat actors often send convincing emails with malicious attachments that disarm the victim's response to any script/macro warnings:
+
+<CodeGroup>
+```html Phishing Email Template
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Work Email</title>
+  </head>
+  <body>
+    <article class="message-pane">
+      <header class="message-info">
+        <section class="from-to">
+          <h1>your_boss@gmail.com</h1>
+          <h2>Urgent accounts error!</h2>
+          <p>To:<em>me@myemail.com</em></p>
+        </section>
+      </header>
+      <section class="message-content">
+        <header>
+          <p>I'm not sure where we got it wrong. But I need you to look at 
+             this spreadsheet urgently. Don't worry about the warnings, 
+             I wrote a macro to help me with the sums</p>
+          <a href="urgent_finance_review.xlsm">urgent_finance_review.xlsm</a>
+        </header>
+      </section>
+    </article>
+  </body>
+</html>
+```
+
+```vba Malicious Excel Macro Example
+Sub Auto_Open()
+    ' This is a simplified example - real attacks are more sophisticated
+    MsgBox "Processing financial data..."
+    
+    ' Malicious code could:
+    ' - Install keyloggers
+    ' - Download additional malware
+    ' - Steal credentials
+    ' - Establish reverse shells
+    
+    ' Silent execution example:
+    Shell "powershell -WindowStyle Hidden -Command ..."
+End Sub
+```
+</CodeGroup>
+
+### Common File Attack Vectors
+
+<Accordion title="File Types and Attack Methods">
+1. **Microsoft Office Documents**
+   - `.docm` / `.xlsm` - Macro-enabled documents
+   - `.doc` / `.xls` - Legacy formats with macro support
+   - Embedded VBA scripts execute on open
+
+2. **PDF Documents**
+   - Embedded JavaScript
+   - Form exploits
+   - Malicious links
+
+3. **Archive Files**
+   - `.zip` / `.rar` containing executables
+   - Double extension tricks (e.g., `document.pdf.exe`)
+
+4. **Image Files**
+   - Embedded scripts in SVG files
+   - Steganography-hidden payloads
+   - Metadata exploits
+</Accordion>
+
+## Side-Channel Attacks
+
+A side-channel attack does not target a program or its code directly. Rather, it attempts to gather information or influence the program execution of a system by measuring or exploiting indirect effects of the system or its hardware.
+
+<Warning>
+Side-channel attacks break cryptography by exploiting information inadvertently leaked by a system when performing cryptographic operations.
+</Warning>
+
+### Types of Side-Channel Leaks
+
+- **Timing**: Measure execution time differences
+- **Power consumption**: Analyze power usage patterns
+- **Electromagnetic emission**: Monitor EM radiation
+- **Acoustic**: Listen to hardware sounds
+- **Cache behavior**: Exploit CPU cache timing
+
+## Time-Based Information Leak Attack
+
+This example demonstrates a side-channel attack that exploits the comparison of response times for correct and incorrect usernames to inform a brute force attack.
+
+### Attack Methodology
+
+<Steps>
+  <Step title="Baseline Analysis">
+    Compare average login time for a known valid username versus random usernames to detect timing differences.
+    
+    ```bash
+    python TimeBasedLoginAnalysis.py -u admin -S
+    ```
+  </Step>
+  
+  <Step title="Username Enumeration">
+    Test a list of potential usernames by comparing their response times against the baseline.
+    
+    ```bash
+    python TimeBasedLoginUserEnum.py -u admin -t 32 -s 100 -f users.txt
+    ```
+  </Step>
+  
+  <Step title="Targeted Attack">
+    Use verified usernames with known passwords from data breaches to perform targeted dictionary attacks.
+  </Step>
+</Steps>
+
+### Timing Attack Implementation
+
+<CodeGroup>
+```python Time-Based Username Enumeration
+import requests
+import statistics
+from concurrent.futures import ThreadPoolExecutor
+
+def trylogin(username, results):
+    """Attempt login and measure response time"""
+    session = requests.Session()
+    try:
+        r = session.post(
+            "http://127.0.0.1:5000/index.html",
+            data={"username": username, "password": "randomPassword"},
+        )
+        # Convert to milliseconds
+        results[username].append(r.elapsed.total_seconds() * 1000)
+        return r.elapsed.total_seconds() * 1000
+    except Exception as e:
+        print(f"[error] {e}")
+        return 0
+
+def average_response_time(username, threads=4, samples=100):
+    """Calculate average response time for username"""
+    results = {username: []}
+    with ThreadPoolExecutor(max_workers=min(threads, samples)) as tp:
+        for k in range(samples):
+            tp.submit(trylogin, username, results)
+    
+    if len(results[username]) != 0:
+        return sum(results[username]) / len(results[username])
+    else:
+        return None
+
+# Compare valid vs invalid username timing
+avg_real_user = average_response_time("admin", threads=4, samples=100)
+avg_random_user = average_response_time("xyzabc", threads=4, samples=100)
+
+diff = abs(avg_real_user - avg_random_user)
+print(f"Timing difference: {diff:.2f} ms")
+
+if diff > 5:  # If difference is > 5ms
+    print("[!] Application vulnerable to timing attacks")
+```
+
+```python Vulnerable Login Code
+# main.py - Lines demonstrating timing vulnerability
+@app.route("/", methods=["POST"])
+def home():
+    username = request.form["username"]
+    password = request.form["password"]
+    
+    # VULNERABLE: Different execution paths for valid/invalid users
+    isLoggedIn = dbHandler.retrieveUsers(username, password)
+    
+    if isLoggedIn:
+        # More processing for valid users = longer response time
+        dbHandler.listFeedback()
+        return render_template("/success.html", value=username, state=isLoggedIn)
+    else:
+        # Quick return for invalid users = shorter response time
+        return render_template("/index.html")
+```
+</CodeGroup>
+
+### Detecting Timing Vulnerabilities
+
+The script performs 100 login attempts for each username and compares average response times:
+
+- **Valid username**: Typically shows consistent, longer response times (e.g., 45ms average)
+- **Invalid username**: Shows shorter response times (e.g., 12ms average)
+- **Difference > 5ms**: Indicates exploitable timing leak
+
+## Countermeasures
+
+### File Attack Prevention
+
+<CodeGroup>
+```python File Upload Validation
+from flask import Flask, request
+import os
+from werkzeug.utils import secure_filename
+
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return 'No file part', 400
+    
+    file = request.files['file']
+    
+    # Check file size
+    file.seek(0, os.SEEK_END)
+    file_length = file.tell()
+    if file_length > MAX_FILE_SIZE:
+        return 'File too large', 400
+    file.seek(0)
+    
+    # Validate extension
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # Additional: Scan with antivirus
+        # Additional: Validate file content matches extension
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return 'File uploaded successfully'
+    
+    return 'Invalid file type', 400
+```
+
+```javascript Content-Type Validation
+const fileType = require('file-type');
+const multer = require('multer');
+
+const upload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: async (req, file, cb) => {
+    // Validate MIME type
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Invalid file type'));
+    }
+    
+    cb(null, true);
+  }
+});
+```
+</CodeGroup>
+
+### Side-Channel Attack Prevention
+
+<CodeGroup>
+```python Isochronous Authentication
+from datetime import datetime, timedelta
+from time import sleep
+import random
+
+@app.route('/', methods=['POST'])
+def authenticate_user():
+    start_time = datetime.now()
+    end_time = start_time + timedelta(milliseconds=500)
+    
+    username = request.form['username']
+    password = request.form['password']
+    
+    # Perform authentication
+    is_authenticated = check_credentials(username, password)
+    
+    # Add random micro delays
+    sleep(random.uniform(0.001, 0.005))
+    
+    # Wait until exactly 500ms has elapsed
+    while datetime.now() < end_time:
+        pass
+    
+    if is_authenticated:
+        return render_template("/success.html", value=username)
+    else:
+        return render_template("/index.html"), 401
+```
+
+```python Constant-Time Comparison
+import hmac
+
+def safe_string_compare(a, b):
+    """Compare strings in constant time"""
+    return hmac.compare_digest(a, b)
+
+# Use for password/token comparison
+if safe_string_compare(stored_hash, computed_hash):
+    # Authenticated
+    pass
+```
+
+```python Flask-Limiter Rate Limiting
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"]
+)
+
+@app.route('/login', methods=['POST'])
+@limiter.limit("5 per minute")
+def login():
+    # Strict rate limiting on login attempts
+    pass
+```
+</CodeGroup>
+
+### Defense-in-Depth Strategy
+
+<Steps>
+  <Step title="Input Validation">
+    - Whitelist allowed file types
+    - Validate file content matches extension
+    - Scan uploads with antivirus
+    - Limit file sizes
+  </Step>
+  
+  <Step title="Execution Prevention">
+    - Disable macros by default
+    - Sandbox file processing
+    - Use Content Security Policy
+    - Application control policies
+  </Step>
+  
+  <Step title="Timing Attack Mitigation">
+    - Implement isochronous functions (constant execution time)
+    - Add random micro delays
+    - Use constant-time comparison for secrets
+    - Implement strict rate limiting
+  </Step>
+  
+  <Step title="User Education">
+    - Train users to recognize phishing
+    - Warn about macro-enabled files
+    - Establish verification procedures
+    - Implement reporting mechanisms
+  </Step>
+</Steps>
+
+## Additional Security Measures
+
+<Accordion title="Related Countermeasures">
+Always address these related vulnerabilities:
+
+- **Cross-Frame Scripting (XFS)**: Prevent iframe embedding
+- **Cross-Site Request Forgery (CSRF)**: Use CSRF tokens
+- **Cross-Site Scripting (XSS)**: Sanitize all inputs
+- **Broken Authentication**: Implement secure session management
+- **Two-Factor Authentication (2FA)**: Add additional verification layer
+</Accordion>
+
+<Warning>
+Side-channel attacks are difficult to detect in action, often do not leave any trace, and may not alter a system while running. Code review with specific attack scenarios in mind is essential.
+</Warning>
+
+## Best Practices
+
+1. **Code Review**: Specifically look for timing-dependent operations in security-critical code
+2. **Randomize Operations**: Add noise through random micro delays in cryptographic processes
+3. **Constant-Time Functions**: Ensure operations run for exactly the same duration regardless of input
+4. **Rate Limiting**: Implement aggressive rate limiting on authentication endpoints
+5. **Whitelist Firewalls**: Block unnecessary outbound connections
+6. **Application Control**: Restrict which applications can execute files
+
+## References
+
+- [Flask-Limiter Documentation](https://flask-limiter.readthedocs.io/en/stable/)
+- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
+- [Timing Attack Prevention](https://codahale.com/a-lesson-in-timing-attacks/)
+- [OWASP Testing for Race Conditions](https://owasp.org/www-community/vulnerabilities/Race_Conditions)
